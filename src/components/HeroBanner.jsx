@@ -14,18 +14,18 @@ const HeroBanner = ({ featuredMedia }) => {
   };
 
   return (
-    <div className="relative w-full h-[85vh] sm:h-[90vh]">
+    <div className="relative w-full h-[60vh] sm:h-[70vh] md:h-[85vh]">
       <div className="absolute w-full h-full">
         <img
           src={media.bannerUrl}
           alt={media.title}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover object-[center_top]"
         />
         <div className="absolute top-0 w-full h-full bg-gradient-to-t from-[#141414] via-black/40 to-transparent" />
         <div className="absolute top-0 w-full h-full bg-gradient-to-r from-[#141414]/90 via-[#141414]/40 to-transparent" />
       </div>
 
-      <div className="absolute top-[30%] sm:top-[40%] px-4 md:px-12 w-full max-w-3xl">
+      <div className="relative h-full flex flex-col justify-end px-4 md:px-12 pb-12 md:pb-24 w-full max-w-3xl z-10">
         <motion.h1 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
