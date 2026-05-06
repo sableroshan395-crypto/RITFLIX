@@ -25,12 +25,12 @@ const HeroBanner = ({ featuredMedia }) => {
         <div className="absolute top-0 w-full h-full bg-gradient-to-r from-[#141414]/90 via-[#141414]/40 to-transparent" />
       </div>
 
-      <div className="absolute top-[35%] sm:top-[40%] px-4 md:px-12 w-full max-w-3xl">
+      <div className="absolute top-[30%] sm:top-[40%] px-4 md:px-12 w-full max-w-3xl">
         <motion.h1 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="text-4xl md:text-6xl font-bold text-white drop-shadow-lg mb-4 line-clamp-2"
+          className="text-3xl md:text-5xl lg:text-6xl font-bold text-white drop-shadow-lg mb-2 md:mb-4 line-clamp-2"
         >
           {media.title}
         </motion.h1>
@@ -39,7 +39,7 @@ const HeroBanner = ({ featuredMedia }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="text-sm md:text-lg text-gray-200 drop-shadow-md mb-8 line-clamp-3 md:line-clamp-4"
+          className="text-xs md:text-base lg:text-lg text-gray-200 drop-shadow-md mb-4 md:mb-8 line-clamp-3 md:line-clamp-4"
         >
           {media.description}
         </motion.p>
@@ -48,17 +48,17 @@ const HeroBanner = ({ featuredMedia }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="flex items-center gap-4"
+          className="flex items-center gap-3 md:gap-4"
         >
           <Link href={`/info/${media._id}`}>
-            <button className="flex items-center gap-2 bg-white text-black px-6 py-2 md:py-3 rounded hover:bg-white/80 transition font-semibold text-lg">
-              <Play className="w-6 h-6 fill-black" />
+            <button className="flex items-center gap-1 md:gap-2 bg-white text-black px-4 py-2 md:px-6 md:py-3 rounded hover:bg-white/80 transition font-semibold text-sm md:text-lg">
+              <Play className="w-5 h-5 md:w-6 md:h-6 fill-black" />
               Play
             </button>
           </Link>
           <Link href={`/info/${media._id}`}>
-            <button className="flex items-center gap-2 bg-gray-500/70 text-white px-6 py-2 md:py-3 rounded hover:bg-gray-500/50 transition font-semibold text-lg">
-              <Info className="w-6 h-6" />
+            <button className="flex items-center gap-1 md:gap-2 bg-gray-500/70 text-white px-4 py-2 md:px-6 md:py-3 rounded hover:bg-gray-500/50 transition font-semibold text-sm md:text-lg">
+              <Info className="w-5 h-5 md:w-6 md:h-6" />
               More Info
             </button>
           </Link>

@@ -32,19 +32,20 @@ const MediaRow = ({ title, items = [] }) => {
   }
 
   return (
-    <div className="space-y-1 md:space-y-2 px-4 md:px-12 my-8">
-      <h2 className="w-56 cursor-pointer text-sm font-semibold text-[#e5e5e5] transition duration-200 hover:text-white md:text-2xl">
+    <div className="space-y-1 md:space-y-2 px-4 md:px-12 my-6 md:my-8">
+      <h2 className="w-56 cursor-pointer text-base md:text-2xl font-semibold text-[#e5e5e5] transition duration-200 hover:text-white">
         {title}
       </h2>
       <div className="group relative md:-ml-2">
         <ChevronLeft 
-          className={`absolute top-0 bottom-0 left-2 z-40 m-auto h-9 w-9 cursor-pointer opacity-0 transition hover:scale-125 group-hover:opacity-100 ${!isMoved && 'hidden'}`} 
+          className={`absolute top-0 bottom-0 left-2 z-40 m-auto h-9 w-9 cursor-pointer opacity-0 transition hover:scale-125 group-hover:opacity-100 hidden md:block ${!isMoved && 'hidden'}`} 
           onClick={() => handleClick("left")} 
         />
 
         <div 
           ref={rowRef} 
-          className="flex items-center space-x-2 md:space-x-4 overflow-x-scroll scrollbar-hide py-4 md:p-2"
+          className="flex items-center space-x-2 md:space-x-4 overflow-x-scroll scrollbar-hide py-2 md:py-4 md:p-2"
+          style={{ WebkitOverflowScrolling: "touch" }}
         >
           {items.map((item, index) => (
             <MediaCard key={item._id} item={item} index={index} />
@@ -52,7 +53,7 @@ const MediaRow = ({ title, items = [] }) => {
         </div>
 
         <ChevronRight 
-          className="absolute top-0 bottom-0 right-2 z-40 m-auto h-9 w-9 cursor-pointer opacity-0 transition hover:scale-125 group-hover:opacity-100" 
+          className="absolute top-0 bottom-0 right-2 z-40 m-auto h-9 w-9 cursor-pointer opacity-0 transition hover:scale-125 group-hover:opacity-100 hidden md:block" 
           onClick={() => handleClick("right")} 
         />
       </div>

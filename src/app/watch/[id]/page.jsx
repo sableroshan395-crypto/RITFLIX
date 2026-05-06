@@ -96,11 +96,11 @@ function WatchPlayer() {
       <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-black/80 to-transparent z-40 pointer-events-none"></div>
       
       <div 
-        className="absolute top-6 left-6 z-50 cursor-pointer text-white hover:text-gray-300 transition flex items-center gap-2 group pointer-events-auto"
+        className="absolute top-4 left-4 md:top-6 md:left-6 z-50 cursor-pointer text-white hover:text-gray-300 transition flex items-center gap-2 group pointer-events-auto bg-black/30 p-2 md:p-0 md:bg-transparent rounded-full md:rounded-none"
         onClick={() => router.back()}
       >
-        <ArrowLeft className="w-8 h-8 drop-shadow-lg" />
-        <span className="font-bold text-lg opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md">Back</span>
+        <ArrowLeft className="w-6 h-6 md:w-8 md:h-8 drop-shadow-lg" />
+        <span className="font-bold text-lg hidden md:inline-block opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md">Back</span>
       </div>
 
       <div className="w-full h-full">

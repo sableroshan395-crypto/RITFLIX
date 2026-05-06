@@ -10,8 +10,12 @@ const MediaCard = ({ item, index }) => {
 
   return (
     <div 
-      className="relative h-28 min-w-[180px] cursor-pointer transition duration-200 ease-out md:h-36 md:min-w-[260px] md:hover:scale-105"
-      onMouseEnter={() => setIsHovered(true)}
+      className="relative h-24 min-w-[140px] cursor-pointer transition duration-200 ease-out sm:h-28 sm:min-w-[180px] md:h-36 md:min-w-[260px] md:hover:scale-105"
+      onMouseEnter={() => {
+        if (typeof window !== "undefined" && window.matchMedia("(hover: hover)").matches) {
+          setIsHovered(true);
+        }
+      }}
       onMouseLeave={() => setIsHovered(false)}
     >
       <Link href={`/info/${item._id}`}>
@@ -29,9 +33,9 @@ const MediaCard = ({ item, index }) => {
             animate={{ opacity: 1, scale: 1.1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.2 }}
-            className="absolute top-0 z-50 w-full h-full md:h-auto min-h-[150%] md:min-h-[200%] bg-[#141414] shadow-xl rounded-md overflow-hidden transform -translate-y-[20%] -translate-x-[5%]"
+            className="absolute top-0 z-50 w-full h-auto min-h-[200%] bg-[#141414] shadow-xl rounded-md overflow-hidden transform -translate-y-[20%] -translate-x-[5%] hidden md:block"
           >
-            <div className="relative h-24 md:h-36 w-full">
+            <div className="relative h-36 w-full">
               <Link href={`/info/${item._id}`}>
                 <img
                   src={item.thumbnailUrl}

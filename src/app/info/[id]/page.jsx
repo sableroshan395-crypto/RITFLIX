@@ -85,17 +85,17 @@ export default function InfoPage() {
         </div>
 
         {/* Hero Content */}
-        <div className="relative h-full flex flex-col justify-end px-4 md:px-16 lg:px-24 pb-12 md:pb-24 max-w-7xl mx-auto">
-          <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-wide drop-shadow-lg uppercase" style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.8)" }}>
+        <div className="relative h-full flex flex-col justify-end px-4 md:px-16 lg:px-24 pb-8 md:pb-24 max-w-7xl mx-auto">
+          <h1 className="text-3xl sm:text-5xl md:text-7xl font-black text-white mb-4 md:mb-6 tracking-wide drop-shadow-lg uppercase" style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.8)" }}>
             {media.title}
           </h1>
 
-          <div className="flex flex-wrap items-center gap-4 mb-6">
+          <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-4 md:mb-6">
             <button 
               onClick={() => router.push(hasSeasons ? `/watch/${media._id}?season=0&episode=0` : `/watch/${media._id}`)}
-              className="flex items-center gap-2 bg-white text-black px-6 py-2 md:py-3 rounded md:text-xl font-semibold hover:bg-gray-200 transition"
+              className="flex items-center gap-1 md:gap-2 bg-white text-black px-4 py-2 md:px-6 md:py-3 rounded text-sm md:text-xl font-semibold hover:bg-gray-200 transition"
             >
-              <Play className="w-6 h-6 fill-black" />
+              <Play className="w-5 h-5 md:w-6 md:h-6 fill-black" />
               Play
             </button>
             <button className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-gray-400 bg-black/40 hover:border-white transition">
@@ -115,8 +115,8 @@ export default function InfoPage() {
             <span className="border border-gray-500 px-1 text-xs">HD</span>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-8">
-            <p className="text-base md:text-lg text-gray-200 md:w-2/3 leading-relaxed drop-shadow-md">
+          <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+            <p className="text-sm md:text-lg text-gray-200 md:w-2/3 leading-relaxed drop-shadow-md">
               {media.description}
             </p>
             <div className="md:w-1/3 space-y-2 text-sm">
@@ -159,12 +159,12 @@ export default function InfoPage() {
             {currentEpisodes.map((ep, index) => (
               <div 
                 key={index} 
-                className="group flex flex-col md:flex-row items-start md:items-center p-6 border-b border-[#333] hover:bg-[#2a2a2a] cursor-pointer transition duration-200"
+                className="group flex flex-row items-start md:items-center p-4 md:p-6 border-b border-[#333] hover:bg-[#2a2a2a] cursor-pointer transition duration-200 gap-3 md:gap-4"
                 onClick={() => router.push(`/watch/${media._id}?season=${selectedSeason}&episode=${index}`)}
               >
-                <div className="text-3xl text-gray-400 font-light w-12 hidden md:block">{ep.episodeNumber}</div>
+                <div className="text-xl md:text-3xl text-gray-400 font-light w-6 md:w-12 hidden sm:block flex-shrink-0">{ep.episodeNumber}</div>
                 
-                <div className="relative w-full md:w-40 h-24 flex-shrink-0 bg-black rounded overflow-hidden mb-4 md:mb-0 md:mr-6">
+                <div className="relative w-28 h-16 sm:w-32 sm:h-20 md:w-40 md:h-24 flex-shrink-0 bg-black rounded overflow-hidden">
                   <img 
                     src={media.thumbnailUrl || heroImage} 
                     alt={ep.title} 
@@ -182,13 +182,13 @@ export default function InfoPage() {
                 </div>
 
                 <div className="flex-1 w-full">
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-semibold text-lg text-white">{ep.title}</h3>
+                  <div className="flex justify-between items-center mb-1 md:mb-2">
+                    <h3 className="font-semibold text-sm md:text-lg text-white line-clamp-1">{ep.title}</h3>
                     {ep.duration && (
-                      <span className="text-gray-400 text-sm hidden md:block">{ep.duration}</span>
+                      <span className="text-gray-400 text-xs md:text-sm hidden md:block">{ep.duration}</span>
                     )}
                   </div>
-                  <p className="text-gray-400 text-sm line-clamp-2 md:line-clamp-3">
+                  <p className="text-gray-400 text-xs md:text-sm line-clamp-2 md:line-clamp-3">
                     {`Episode ${ep.episodeNumber} of ${media.title} Season ${media.seasons[selectedSeason].seasonNumber}. `} 
                     {media.description.length > 100 ? media.description.substring(0, 100) + "..." : media.description}
                   </p>
