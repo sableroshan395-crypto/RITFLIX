@@ -127,12 +127,51 @@ function WatchPlayer() {
     }
   }
 
+  const containerRef = useRef(null);
+  const [hasInteracted, setHasInteracted] = useState(false);
+
+  const handleInteraction = async () => {
+    resetIdleTimer();
+    
+    if (!hasInteracted) {
+      setHasInteracted(true);
+      // Attempt auto-fullscreen and landscape lock on mobile devices
+      if (typeof window !== "undefined" && window.innerWidth < 768 && containerRef.current) {
+        try {
+          if (!document.fullscreenElement && containerRef.current.requestFullscreen) {
+            await containerRef.current.requestFullscreen();
+          }
+          if (screen.orientation && screen.orientation.lock) {
+            await screen.orientation.lock("landscape");
+          }
+        } catch (e) {
+          console.warn("Fullscreen/Orientation lock failed. Browser may not support it or requires stricter interaction.", e);
+        }
+      }
+    }
+  };
+
+  const handleBack = async () => {
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+      if (window.screen && screen.orientation && screen.orientation.unlock) {
+        screen.orientation.unlock();
+      }
+    } catch (e) {
+      console.warn("Exit Fullscreen error:", e);
+    }
+    router.back();
+  };
+
   return (
     <div 
+      ref={containerRef}
       className="h-screen w-full bg-black relative overflow-hidden flex flex-col"
-      onMouseMove={resetIdleTimer}
-      onClick={resetIdleTimer}
-      onTouchStart={resetIdleTimer}
+      onMouseMove={handleInteraction}
+      onClick={handleInteraction}
+      onTouchStart={handleInteraction}
     >
       {/* Video Player Layer */}
       <div className="absolute inset-0 z-0">
@@ -142,7 +181,7 @@ function WatchPlayer() {
               src={getGoogleDrivePreviewUrl(currentVideoSource)}
               width="100%"
               height="100%"
-              allow="autoplay"
+              allow="autoplay; fullscreen"
               allowFullScreen
               className="border-none bg-black w-full h-full"
             ></iframe>
@@ -168,33 +207,33 @@ function WatchPlayer() {
 
       {/* Logical Player Overlay Layer */}
       <div 
-        className={`absolute inset-0 z-10 flex flex-col justify-between transition-opacity duration-500 pointer-events-none ${isIdle ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute inset-0 z-10 flex flex-col justify-start transition-opacity duration-500 pointer-events-none ${isIdle ? 'opacity-0' : 'opacity-100'}`}
       >
         {/* Top Header */}
-        <div className="w-full bg-gradient-to-b from-black/90 via-black/50 to-transparent pt-4 pb-16 px-4 md:px-8 flex items-start gap-4 pointer-events-auto">
-          <div 
-            className="cursor-pointer text-white hover:text-gray-300 transition flex items-center justify-center p-2 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm"
-            onClick={() => router.back()}
-          >
-            <ArrowLeft className="w-6 h-6 md:w-8 md:h-8" />
+        <div className="w-full bg-gradient-to-b from-black/90 via-black/50 to-transparent pt-4 pb-20 px-4 md:px-8 flex items-start justify-between gap-4 pointer-events-auto">
+          <div className="flex items-start gap-3 md:gap-4 flex-1">
+            <div 
+              className="cursor-pointer text-white hover:text-gray-300 transition flex items-center justify-center p-2 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm shrink-0"
+              onClick={handleBack}
+            >
+              <ArrowLeft className="w-6 h-6 md:w-8 md:h-8" />
+            </div>
+            <div className="flex flex-col text-white mt-1 md:mt-2">
+              <h1 className="font-bold text-base sm:text-lg md:text-2xl tracking-wide drop-shadow-md line-clamp-1">{contextTitle}</h1>
+              {episodeTitle && <h2 className="text-xs sm:text-sm md:text-lg text-gray-300 drop-shadow-md line-clamp-1">{episodeTitle}</h2>}
+            </div>
           </div>
-          <div className="flex flex-col text-white mt-1 md:mt-2">
-            <h1 className="font-bold text-lg md:text-2xl tracking-wide drop-shadow-md">{contextTitle}</h1>
-            {episodeTitle && <h2 className="text-sm md:text-lg text-gray-300 drop-shadow-md">{episodeTitle}</h2>}
-          </div>
-        </div>
 
-        {/* Bottom Footer */}
-        <div className="w-full bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-16 pb-8 px-6 md:px-12 flex items-end justify-end pointer-events-auto">
           {hasNextEpisode && (
             <button 
               onClick={() => {
                 setLoading(true);
                 router.push(nextEpisodeUrl);
               }}
-              className="flex items-center gap-2 bg-white text-black px-4 py-2 md:px-6 md:py-3 rounded font-bold hover:bg-gray-200 transition shadow-lg group"
+              className="flex items-center gap-1 sm:gap-2 bg-white/10 hover:bg-white text-white hover:text-black border border-white/30 px-3 sm:px-4 py-1.5 md:px-6 md:py-2.5 rounded font-bold transition shadow-lg group backdrop-blur-sm shrink-0 mt-1"
             >
-              <span className="text-sm md:text-base">Next Episode</span>
+              <span className="text-xs sm:text-sm md:text-base hidden sm:inline-block">Next Episode</span>
+              <span className="text-xs sm:text-sm md:text-base sm:hidden">Next</span>
               <SkipForward className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           )}
