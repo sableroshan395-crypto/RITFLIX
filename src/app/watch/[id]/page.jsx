@@ -15,7 +15,9 @@ function WatchPlayer() {
   const [media, setMedia] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isIdle, setIsIdle] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
   const idleTimeoutRef = useRef(null);
+  const containerRef = useRef(null);
 
   const resetIdleTimer = () => {
     setIsIdle(false);
@@ -126,9 +128,6 @@ function WatchPlayer() {
       currentVideoSource = media.seasons[0].episodes[0].videoSource;
     }
   }
-
-  const containerRef = useRef(null);
-  const [hasInteracted, setHasInteracted] = useState(false);
 
   const handleInteraction = async () => {
     resetIdleTimer();

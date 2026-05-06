@@ -23,12 +23,12 @@ const MediaRow = ({ title, items = [] }) => {
   // If no items, show empty or return null
   if (!items || items.length === 0) {
     // For development, inject placeholders
-    items = Array(10).fill({
-      _id: Math.random().toString(),
+    items = Array(10).fill(null).map((_, i) => ({
+      _id: `placeholder-${i}`,
       title: "Placeholder Title",
       thumbnailUrl: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1925&auto=format&fit=crop",
       genre: "Action"
-    });
+    }));
   }
 
   return (

@@ -5,12 +5,12 @@ import MediaCard from "@/components/MediaCard";
 
 export default function MyList() {
   // Mock data for UI demonstration
-  const wishlist = Array(6).fill({
-    _id: Math.random().toString(),
+  const wishlist = Array(6).fill(null).map((_, i) => ({
+    _id: `wishlist-${i}`,
     title: "Wishlist Item",
     thumbnailUrl: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1925&auto=format&fit=crop",
     genre: "Thriller"
-  });
+  }));
 
   return (
     <div className="min-h-screen bg-[#141414] text-white">
