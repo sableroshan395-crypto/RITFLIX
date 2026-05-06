@@ -1,0 +1,585 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Upload, Plus, Trash2, Edit } from "lucide-react";
+import Navbar from "@/components/Navbar";
+
+export default function AdminDashboard() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  
+  const initialFormState = {
+    title: "",
+    description: "",
+    type: "Movie",
+    genre: "",
+    duration: "",
+    thumbnailUrl: "",
+    bannerUrl: "",
+    videoSource: "",
+    isFeatured: false,
+    seasons: [],
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    
+    if (name === "type") {
+      setFormData({
+        ...formData,
+        [name]: value,
+        seasons: value === "Movie" ? [] : [{ 
+          seasonNumber: 1, 
+          episodes: [{ episodeNumber: 1, title: "Episode 1", duration: "", videoSource: "" }] 
+        }],
+        videoSource: value !== "Movie" ? "" : formData.videoSource,
+      });
+      return;
+    }
+
+    setFormData({
+      ...formData,
+      [name]: type === "checkbox" ? checked : value,
+    });
+  };
+
+  const addSeason = () => {
+    setFormData({
+      ...formData,
+      seasons: [
+        ...formData.seasons,
+        {
+          seasonNumber: formData.seasons.length + 1,
+          episodes: [],
+        },
+      ],
+    });
+  };
+
+  const removeSeason = (seasonIndex) => {
+    const newSeasons = formData.seasons.filter((_, i) => i !== seasonIndex);
+    const adjustedSeasons = newSeasons.map((s, i) => ({
+      ...s,
+      seasonNumber: i + 1,
+    }));
+    setFormData({ ...formData, seasons: adjustedSeasons });
+  };
+
+  const addEpisode = (seasonIndex) => {
+    const newSeasons = [...formData.seasons];
+    const newEpNumber = newSeasons[seasonIndex].episodes.length + 1;
+    newSeasons[seasonIndex].episodes.push({
+      episodeNumber: newEpNumber,
+      title: `Episode ${newEpNumber}`,
+      duration: "",
+      videoSource: "",
+    });
+    setFormData({ ...formData, seasons: newSeasons });
+  };
+
+  const removeEpisode = (seasonIndex, episodeIndex) => {
+    const newSeasons = [...formData.seasons];
+    newSeasons[seasonIndex].episodes = newSeasons[seasonIndex].episodes.filter((_, i) => i !== episodeIndex);
+    // Re-adjust episode numbers within this season
+    newSeasons[seasonIndex].episodes = newSeasons[seasonIndex].episodes.map((ep, i) => ({
+      ...ep,
+      episodeNumber: i + 1,
+    }));
+    setFormData({ ...formData, seasons: newSeasons });
+  };
+
+  const handleEpisodeChange = (seasonIndex, episodeIndex, field, value) => {
+    const newSeasons = [...formData.seasons];
+    newSeasons[seasonIndex].episodes[episodeIndex][field] = value;
+    setFormData({ ...formData, seasons: newSeasons });
+  };
+
+  const handleEdit = (item) => {
+    setEditingId(item._id);
+    setFormData({
+      title: item.title || "",
+      description: item.description || "",
+      type: item.type || "Movie",
+      genre: item.genre || "",
+      duration: item.duration || "",
+      thumbnailUrl: item.thumbnailUrl || "",
+      bannerUrl: item.bannerUrl || "",
+      videoSource: item.videoSource || "",
+      isFeatured: item.isFeatured || false,
+      seasons: item.seasons || [],
+    });
+    setActiveTab("add");
+    setMessage("");
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setFormData(initialFormState);
+    setMessage("");
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
+
+    if (formData.type !== "Movie") {
+      if (formData.seasons.length === 0) {
+        setMessage("Error: Series/Anime must have at least one season.");
+        setLoading(false);
+        return;
+      }
+      for (const season of formData.seasons) {
+        if (season.episodes.length === 0) {
+          setMessage(`Error: Season ${season.seasonNumber} must have at least one episode.`);
+          setLoading(false);
+          return;
+        }
+      }
+    }
+
+    try {
+      const payload = { ...formData };
+      if (payload.type === "Movie") {
+        delete payload.seasons;
+      } else {
+        delete payload.videoSource;
+      }
+
+      const url = editingId ? `/api/media/${editingId}` : "/api/media";
+      const method = editingId ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setMessage(editingId ? "Media updated successfully!" : "Media added successfully!");
+        setFormData(initialFormState);
+        if (editingId) setEditingId(null);
+      } else {
+        const errorData = await res.json();
+        setMessage(`Error: ${errorData.error || "Failed to save media"}`);
+      }
+    } catch (error) {
+      setMessage("An unexpected error occurred.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passcode, setPasscode] = useState("");
+  const [passcodeError, setPasscodeError] = useState("");
+  const [activeTab, setActiveTab] = useState("add"); 
+  const [mediaList, setMediaList] = useState([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
+
+  const fetchMediaList = async () => {
+    setLoadingMedia(true);
+    try {
+      const res = await fetch("/api/media");
+      if (res.ok) {
+        const data = await res.json();
+        setMediaList(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch media list", error);
+    } finally {
+      setLoadingMedia(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this media? This action cannot be undone.")) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`/api/media/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setMediaList(mediaList.filter(item => item._id !== id));
+      } else {
+        alert("Failed to delete media.");
+      }
+    } catch (error) {
+      console.error("Delete error", error);
+    }
+  };
+
+  const handlePasscodeSubmit = (e) => {
+    e.preventDefault();
+    if (passcode === "Ac80m4a1") {
+      setIsAuthenticated(true);
+      setPasscodeError("");
+    } else {
+      setPasscodeError("Incorrect passcode. Access denied.");
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#141414] text-white flex flex-col items-center justify-center">
+        <Navbar />
+        <div className="bg-[#181818] p-8 rounded-lg shadow-xl border border-gray-800 w-full max-w-md z-10 mt-16">
+          <h2 className="text-2xl font-bold mb-6 text-center text-primary">Admin Access Required</h2>
+          {passcodeError && <p className="text-red-500 mb-4 text-center text-sm">{passcodeError}</p>}
+          <form onSubmit={handlePasscodeSubmit} className="space-y-4">
+            <div>
+              <input
+                type="password"
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
+                placeholder="Enter Passcode"
+                className="w-full bg-[#2a2a2a] text-white p-3 rounded focus:outline-none focus:ring-2 focus:ring-primary text-center tracking-widest"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-primary hover:bg-primary/80 text-white font-semibold py-3 px-4 rounded transition"
+            >
+              Unlock Dashboard
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#141414] text-white">
+      <Navbar />
+      
+      <main className="pt-24 px-4 md:px-12 max-w-4xl mx-auto pb-12">
+        <h1 className="text-3xl font-bold mb-8 text-primary">Admin Dashboard</h1>
+        
+        <div className="flex gap-4 mb-6 border-b border-gray-800 pb-2">
+          <button
+            onClick={() => {
+              setActiveTab("add");
+              if (!editingId) setFormData(initialFormState);
+            }}
+            className={`pb-2 px-4 font-semibold transition-colors ${activeTab === "add" ? "text-primary border-b-2 border-primary" : "text-gray-400 hover:text-white"}`}
+          >
+            {editingId ? "Edit Content" : "Add Content"}
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("manage");
+              fetchMediaList();
+            }}
+            className={`pb-2 px-4 font-semibold transition-colors ${activeTab === "manage" ? "text-primary border-b-2 border-primary" : "text-gray-400 hover:text-white"}`}
+          >
+            Manage Content
+          </button>
+        </div>
+
+        <div className="bg-[#181818] p-6 md:p-8 rounded-lg shadow-xl border border-gray-800 min-h-[500px]">
+          {activeTab === "add" ? (
+            <>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">{editingId ? "Edit Content" : "Add New Content"}</h2>
+                {editingId && (
+                  <button 
+                    onClick={cancelEdit}
+                    className="text-sm bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded transition"
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
+              
+              {message && (
+                <div className={`p-4 mb-6 rounded ${message.includes("Error") ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"}`}>
+                  {message}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400">Title</label>
+                    <input
+                      type="text"
+                      name="title"
+                      value={formData.title}
+                      onChange={handleChange}
+                      required
+                      className="w-full bg-[#2a2a2a] text-white p-3 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="e.g. Inception"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400">Type</label>
+                    <select
+                      name="type"
+                      value={formData.type}
+                      onChange={handleChange}
+                      className="w-full bg-[#2a2a2a] text-white p-3 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="Movie">Movie</option>
+                      <option value="Series">Series</option>
+                      <option value="Anime">Anime</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400">Genre</label>
+                    <input
+                      type="text"
+                      name="genre"
+                      value={formData.genre}
+                      onChange={handleChange}
+                      required
+                      className="w-full bg-[#2a2a2a] text-white p-3 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="e.g. Action, Sci-Fi"
+                    />
+                  </div>
+
+                  {formData.type === "Movie" && (
+                    <div className="space-y-2">
+                      <label className="text-sm text-gray-400">Duration (Optional)</label>
+                      <input
+                        type="text"
+                        name="duration"
+                        value={formData.duration}
+                        onChange={handleChange}
+                        className="w-full bg-[#2a2a2a] text-white p-3 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="e.g. 1h 45m"
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2 flex items-end pb-3">
+                    <label className="flex items-center gap-2 cursor-pointer text-gray-300">
+                      <input
+                        type="checkbox"
+                        name="isFeatured"
+                        checked={formData.isFeatured}
+                        onChange={handleChange}
+                        className="w-5 h-5 accent-primary cursor-pointer"
+                      />
+                      Feature on Hero Banner
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-400">Description</label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    required
+                    rows="4"
+                    className="w-full bg-[#2a2a2a] text-white p-3 rounded focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                    placeholder="Synopsis..."
+                  ></textarea>
+                </div>
+
+                {formData.type === "Movie" ? (
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400">Video Source URL (Embed or Direct Link)</label>
+                    <input
+                      type="text"
+                      name="videoSource"
+                      value={formData.videoSource}
+                      onChange={handleChange}
+                      required
+                      className="w-full bg-[#2a2a2a] text-white p-3 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="https://youtube.com/watch?v=..."
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-6 border border-gray-700 p-4 rounded-lg bg-[#141414]">
+                    <div className="flex justify-between items-center border-b border-gray-800 pb-2">
+                      <h3 className="text-lg font-medium text-gray-200">Seasons Builder</h3>
+                      <button
+                        type="button"
+                        onClick={addSeason}
+                        className="flex items-center gap-1 text-sm bg-primary hover:bg-primary/80 px-3 py-1.5 rounded transition font-semibold"
+                      >
+                        <Plus className="w-4 h-4" /> Add Season
+                      </button>
+                    </div>
+                    
+                    {formData.seasons.length === 0 && (
+                      <p className="text-gray-500 text-sm">No seasons added yet.</p>
+                    )}
+
+                    <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-700">
+                      {formData.seasons.map((season, seasonIndex) => (
+                        <div key={seasonIndex} className="bg-[#1a1a1a] p-4 rounded border border-gray-700">
+                          
+                          <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-800">
+                            <h4 className="font-bold text-white text-lg">Season {season.seasonNumber}</h4>
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => addEpisode(seasonIndex)}
+                                className="flex items-center gap-1 text-sm bg-[#2a2a2a] hover:bg-gray-700 px-3 py-1 rounded transition text-gray-300"
+                              >
+                                <Plus className="w-4 h-4" /> Add Episode
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeSeason(seasonIndex)}
+                                className="text-gray-500 hover:text-red-500 transition"
+                                title="Delete Season"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            {season.episodes.length === 0 && (
+                              <p className="text-sm text-gray-500 italic">No episodes in Season {season.seasonNumber} yet.</p>
+                            )}
+                            {season.episodes.map((ep, episodeIndex) => (
+                              <div key={episodeIndex} className="flex flex-col gap-2 p-3 bg-[#1e1e1e] rounded border border-gray-800">
+                                <div className="flex justify-between items-center">
+                                  <span className="font-semibold text-gray-400 text-sm">Episode {ep.episodeNumber}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeEpisode(seasonIndex, episodeIndex)}
+                                    className="text-gray-600 hover:text-red-500 transition"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                  <input
+                                    type="text"
+                                    value={ep.title}
+                                    onChange={(e) => handleEpisodeChange(seasonIndex, episodeIndex, "title", e.target.value)}
+                                    placeholder="Episode Title"
+                                    required
+                                    className="w-full bg-[#2a2a2a] text-white p-2 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm md:col-span-1"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={ep.duration}
+                                    onChange={(e) => handleEpisodeChange(seasonIndex, episodeIndex, "duration", e.target.value)}
+                                    placeholder="Duration (e.g. 24m)"
+                                    className="w-full bg-[#2a2a2a] text-white p-2 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={ep.videoSource}
+                                    onChange={(e) => handleEpisodeChange(seasonIndex, episodeIndex, "videoSource", e.target.value)}
+                                    placeholder="Video URL"
+                                    required
+                                    className="w-full bg-[#2a2a2a] text-white p-2 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm md:col-span-3"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400">Thumbnail URL</label>
+                    <input
+                      type="text"
+                      name="thumbnailUrl"
+                      value={formData.thumbnailUrl}
+                      onChange={handleChange}
+                      required
+                      className="w-full bg-[#2a2a2a] text-white p-3 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="https://..."
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400">Banner URL (For Hero)</label>
+                    <input
+                      type="text"
+                      name="bannerUrl"
+                      value={formData.bannerUrl}
+                      onChange={handleChange}
+                      required
+                      className="w-full bg-[#2a2a2a] text-white p-3 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-primary hover:bg-primary/80 text-white font-semibold py-3 px-4 rounded transition flex items-center justify-center gap-2"
+                >
+                  <Upload className="w-5 h-5" />
+                  {loading ? (editingId ? "Saving..." : "Adding...") : (editingId ? "Save Changes" : "Add to Library")}
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl font-semibold mb-6 flex justify-between items-center">
+                Manage Content
+                <span className="text-sm font-normal text-gray-400">{mediaList.length} Items</span>
+              </h2>
+              
+              {loadingMedia ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                </div>
+              ) : mediaList.length === 0 ? (
+                <div className="text-center text-gray-500 py-12">No media found.</div>
+              ) : (
+                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-700">
+                  {mediaList.map((item) => (
+                    <div key={item._id} className="flex items-center gap-4 bg-[#1e1e1e] p-4 rounded border border-gray-800">
+                      <img src={item.thumbnailUrl} alt={item.title} className="w-16 h-10 object-cover rounded" />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-white truncate">{item.title}</h3>
+                        <p className="text-xs text-gray-400">{item.type} • {item.genre}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEdit(item)}
+                          className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 rounded transition"
+                          title="Edit Media"
+                        >
+                          <Edit className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item._id)}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded transition"
+                          title="Delete Media"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
