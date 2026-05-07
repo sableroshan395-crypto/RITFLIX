@@ -3,7 +3,8 @@
 import { useState, useEffect, Suspense, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, SkipForward } from "lucide-react";
-import ReactPlayer from "react-player";
+import Plyr from "plyr-react";
+import "plyr-react/plyr.css";
 
 function WatchPlayer() {
   const { id } = useParams();
@@ -91,6 +92,49 @@ function WatchPlayer() {
       console.error("Error parsing Google Drive URL", e);
     }
     return url;
+  };
+
+  const getPlyrSource = (url) => {
+    if (!url) return null;
+    if (url.includes("youtube.com") || url.includes("youtu.be")) {
+      return {
+        type: "video",
+        sources: [
+          {
+            src: url,
+            provider: "youtube"
+          }
+        ]
+      };
+    } else if (url.includes("vimeo.com")) {
+      return {
+        type: "video",
+        sources: [
+          {
+            src: url,
+            provider: "vimeo"
+          }
+        ]
+      };
+    } else {
+      return {
+        type: "video",
+        sources: [
+          {
+            src: url
+          }
+        ]
+      };
+    }
+  };
+
+  const plyrOptions = {
+    autoplay: true,
+    controls: [
+      'play-large', 'play', 'progress', 'current-time', 'duration',
+      'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'
+    ],
+    settings: ['captions', 'quality', 'speed']
   };
 
   const hasSeasons = media.seasons && media.seasons.length > 0;
@@ -185,17 +229,12 @@ function WatchPlayer() {
               className="border-none bg-black w-full h-full"
             ></iframe>
           ) : (
-            <ReactPlayer
-              url={currentVideoSource}
-              width="100%"
-              height="100%"
-              controls={true}
-              playing={true}
-              style={{ backgroundColor: "black" }}
-              config={{
-                youtube: { playerVars: { showinfo: 1 } }
-              }}
-            />
+            <div className="w-full h-full [&>.plyr]:w-full [&>.plyr]:h-full [&>.plyr]:absolute [&>.plyr]:inset-0 flex items-center justify-center bg-black">
+              <Plyr
+                source={getPlyrSource(currentVideoSource)}
+                options={plyrOptions}
+              />
+            </div>
           )
         ) : (
           <div className="h-full w-full flex items-center justify-center">
