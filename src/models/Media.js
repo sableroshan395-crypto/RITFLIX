@@ -38,13 +38,21 @@ const MediaSchema = new mongoose.Schema(
         "Please provide a video source URL for the movie"
       ],
     },
+    audioTracks: [{
+      label: { type: String, required: true },
+      url: { type: String, required: true }
+    }],
     seasons: [{
       seasonNumber: { type: Number, required: true },
       episodes: [{
         episodeNumber: { type: Number, required: true },
         title: { type: String, required: true },
         duration: { type: String, default: "" },
-        videoSource: { type: String, required: true }
+        videoSource: { type: String, required: true },
+        audioTracks: [{
+          label: { type: String, required: true },
+          url: { type: String, required: true }
+        }]
       }]
     }],
     isFeatured: {
