@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, SkipForward } from "lucide-react";
-import Plyr from "plyr-react";
+import { Plyr } from "plyr-react";
 import "plyr-react/plyr.css";
 
 function WatchPlayer() {
