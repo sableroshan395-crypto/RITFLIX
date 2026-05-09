@@ -94,6 +94,7 @@ function WatchPlayer() {
   const hasSeasons = media.seasons && media.seasons.length > 0;
 
   let currentVideoSource = media.videoSource;
+  let currentAudioTracks = media.audioTracks || [];
   let episodeTitle = "";
   let contextTitle = media.title;
   let hasNextEpisode = false;
@@ -108,6 +109,7 @@ function WatchPlayer() {
       const season = media.seasons[sIndex];
 
       currentVideoSource = ep.videoSource;
+      currentAudioTracks = ep.audioTracks || [];
       episodeTitle = ep.title;
       contextTitle = `${media.title} • S${season.seasonNumber}:E${ep.episodeNumber}`;
 
@@ -123,6 +125,7 @@ function WatchPlayer() {
       }
     } else if (media.seasons[0] && media.seasons[0].episodes[0]) {
       currentVideoSource = media.seasons[0].episodes[0].videoSource;
+      currentAudioTracks = media.seasons[0].episodes[0].audioTracks || [];
     }
   }
 
@@ -181,6 +184,7 @@ function WatchPlayer() {
         {currentVideoSource ? (
           <VideoPlayer
             src={currentVideoSource}
+            audioTracks={currentAudioTracks}
             autoPlay
             onError={(msg) => setPlayerErrorMsg(msg)}
           />

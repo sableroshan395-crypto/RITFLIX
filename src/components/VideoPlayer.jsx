@@ -23,7 +23,11 @@ export default function VideoPlayer({
 
   const [buffering, setBuffering] = useState(false);
   const [playerError, setPlayerError] = useState(null);
-  const [activeAudioIdx, setActiveAudioIdx] = useState(0);
+  const [activeAudioIdx, setActiveAudioIdx] = useState(() => {
+    if (!audioTracks || audioTracks.length === 0) return 0;
+    const defIdx = audioTracks.findIndex((t) => t.default);
+    return defIdx !== -1 ? defIdx : 0;
+  });
   const [showAudioMenu, setShowAudioMenu] = useState(false);
 
   const isGoogleDrive = src && src.includes("drive.google.com");
@@ -162,6 +166,14 @@ export default function VideoPlayer({
     };
   }, [syncAudioToVideo]);
 
+  // Handle src changes to reset default track
+  useEffect(() => {
+    if (audioTracks && audioTracks.length > 0) {
+      const defIdx = audioTracks.findIndex((t) => t.default);
+      setActiveAudioIdx(defIdx !== -1 ? defIdx : 0);
+    }
+  }, [src]);
+
   // ── Main video setup ─────────────────────────────────────────────────────
   useEffect(() => {
     if (isGoogleDrive || !src) return;
@@ -227,9 +239,11 @@ export default function VideoPlayer({
 
     loadSource(track.url, audio, hlsAudioRef, () => {
       const video = videoRef.current;
-      if (video && !video.paused) {
+      if (video) {
         audio.currentTime = video.currentTime;
-        audio.play().catch(() => {});
+        if (!video.paused) {
+          audio.play().catch(() => {});
+        }
       }
     });
 
@@ -324,7 +338,7 @@ export default function VideoPlayer({
               <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
               <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
             </svg>
-            <span className="vp-audio-label">{audioTracks[activeAudioIdx]?.label || "Audio"}</span>
+            <span className="vp-audio-label">{audioTracks[activeAudioIdx]?.name || audioTracks[activeAudioIdx]?.label || "Audio"}</span>
           </button>
 
           {showAudioMenu && (
@@ -345,7 +359,7 @@ export default function VideoPlayer({
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   )}
-                  {t.label}
+                  {t.name || t.label}
                 </button>
               ))}
             </div>

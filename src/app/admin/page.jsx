@@ -20,6 +20,7 @@ export default function AdminDashboard() {
     thumbnailUrl: "",
     bannerUrl: "",
     videoSource: "",
+    audioTracks: [],
     isFeatured: false,
     seasons: [],
   };
@@ -35,7 +36,7 @@ export default function AdminDashboard() {
         [name]: value,
         seasons: value === "Movie" ? [] : [{ 
           seasonNumber: 1, 
-          episodes: [{ episodeNumber: 1, title: "Episode 1", duration: "", videoSource: "" }] 
+          episodes: [{ episodeNumber: 1, title: "Episode 1", duration: "", videoSource: "", audioTracks: [] }] 
         }],
         videoSource: value !== "Movie" ? "" : formData.videoSource,
       });
@@ -78,6 +79,7 @@ export default function AdminDashboard() {
       title: `Episode ${newEpNumber}`,
       duration: "",
       videoSource: "",
+      audioTracks: [],
     });
     setFormData({ ...formData, seasons: newSeasons });
   };
@@ -99,6 +101,53 @@ export default function AdminDashboard() {
     setFormData({ ...formData, seasons: newSeasons });
   };
 
+  const addAudioTrack = () => {
+    setFormData({
+      ...formData,
+      audioTracks: [...(formData.audioTracks || []), { name: "", lang: "", url: "", default: false }],
+    });
+  };
+
+  const removeAudioTrack = (index) => {
+    const newTracks = [...formData.audioTracks];
+    newTracks.splice(index, 1);
+    setFormData({ ...formData, audioTracks: newTracks });
+  };
+
+  const handleAudioTrackChange = (index, field, value) => {
+    const newTracks = [...formData.audioTracks];
+    if (field === "default" && value === true) {
+      newTracks.forEach(t => t.default = false);
+    }
+    newTracks[index][field] = value;
+    setFormData({ ...formData, audioTracks: newTracks });
+  };
+
+  const addEpisodeAudioTrack = (seasonIndex, episodeIndex) => {
+    const newSeasons = [...formData.seasons];
+    if (!newSeasons[seasonIndex].episodes[episodeIndex].audioTracks) {
+      newSeasons[seasonIndex].episodes[episodeIndex].audioTracks = [];
+    }
+    newSeasons[seasonIndex].episodes[episodeIndex].audioTracks.push({ name: "", lang: "", url: "", default: false });
+    setFormData({ ...formData, seasons: newSeasons });
+  };
+
+  const removeEpisodeAudioTrack = (seasonIndex, episodeIndex, trackIndex) => {
+    const newSeasons = [...formData.seasons];
+    newSeasons[seasonIndex].episodes[episodeIndex].audioTracks.splice(trackIndex, 1);
+    setFormData({ ...formData, seasons: newSeasons });
+  };
+
+  const handleEpisodeAudioTrackChange = (seasonIndex, episodeIndex, trackIndex, field, value) => {
+    const newSeasons = [...formData.seasons];
+    const tracks = newSeasons[seasonIndex].episodes[episodeIndex].audioTracks;
+    if (field === "default" && value === true) {
+      tracks.forEach(t => t.default = false);
+    }
+    tracks[trackIndex][field] = value;
+    setFormData({ ...formData, seasons: newSeasons });
+  };
+
   const handleEdit = (item) => {
     setEditingId(item._id);
     setFormData({
@@ -110,6 +159,7 @@ export default function AdminDashboard() {
       thumbnailUrl: item.thumbnailUrl || "",
       bannerUrl: item.bannerUrl || "",
       videoSource: item.videoSource || "",
+      audioTracks: item.audioTracks || [],
       isFeatured: item.isFeatured || false,
       seasons: item.seasons || [],
     });
@@ -392,17 +442,46 @@ export default function AdminDashboard() {
                 </div>
 
                 {formData.type === "Movie" ? (
-                  <div className="space-y-2">
-                    <label className="text-sm text-gray-400">Video Source URL (Embed or Direct Link)</label>
-                    <input
-                      type="text"
-                      name="videoSource"
-                      value={formData.videoSource}
-                      onChange={handleChange}
-                      required
-                      className="w-full bg-[#2a2a2a] text-white p-3 rounded focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="https://youtube.com/watch?v=..."
-                    />
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm text-gray-400">Video Source URL (Embed or Direct Link)</label>
+                      <input
+                        type="text"
+                        name="videoSource"
+                        value={formData.videoSource}
+                        onChange={handleChange}
+                        required
+                        className="w-full bg-[#2a2a2a] text-white p-3 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="https://youtube.com/watch?v=..."
+                      />
+                    </div>
+                    
+                    <div className="border border-gray-700 p-4 rounded-lg bg-[#141414] space-y-4">
+                      <div className="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <h3 className="text-sm font-medium text-gray-200">Audio Tracks (Optional)</h3>
+                        <button
+                          type="button"
+                          onClick={addAudioTrack}
+                          className="flex items-center gap-1 text-xs bg-[#2a2a2a] hover:bg-gray-700 px-2 py-1 rounded transition text-gray-300"
+                        >
+                          <Plus className="w-3 h-3" /> Add Track
+                        </button>
+                      </div>
+                      {(formData.audioTracks || []).map((track, trackIdx) => (
+                        <div key={trackIdx} className="flex flex-col gap-2 p-3 bg-[#1e1e1e] rounded border border-gray-800 relative">
+                           <button type="button" onClick={() => removeAudioTrack(trackIdx)} className="absolute top-2 right-2 text-gray-500 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pr-6">
+                             <input type="text" placeholder="Name (e.g. English)" value={track.name} onChange={(e) => handleAudioTrackChange(trackIdx, "name", e.target.value)} required className="bg-[#2a2a2a] text-white p-2 text-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" />
+                             <input type="text" placeholder="Lang (e.g. en)" value={track.lang} onChange={(e) => handleAudioTrackChange(trackIdx, "lang", e.target.value)} className="bg-[#2a2a2a] text-white p-2 text-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" />
+                             <input type="text" placeholder="URL (.m3u8)" value={track.url} onChange={(e) => handleAudioTrackChange(trackIdx, "url", e.target.value)} required className="md:col-span-2 bg-[#2a2a2a] text-white p-2 text-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" />
+                           </div>
+                           <label className="flex items-center gap-2 text-sm text-gray-400 mt-1 cursor-pointer w-max">
+                             <input type="checkbox" checked={track.default} onChange={(e) => handleAudioTrackChange(trackIdx, "default", e.target.checked)} className="accent-primary w-4 h-4 cursor-pointer" />
+                             Set as default track
+                           </label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-6 border border-gray-700 p-4 rounded-lg bg-[#141414]">
@@ -486,6 +565,29 @@ export default function AdminDashboard() {
                                     required
                                     className="w-full bg-[#2a2a2a] text-white p-2 rounded focus:outline-none focus:ring-1 focus:ring-primary text-sm md:col-span-3"
                                   />
+                                </div>
+                                <div className="mt-2 pl-2 border-l-2 border-gray-700 space-y-2">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-xs text-gray-500 font-medium">Audio Tracks</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => addEpisodeAudioTrack(seasonIndex, episodeIndex)}
+                                      className="text-xs text-primary hover:text-white transition flex items-center gap-1"
+                                    >
+                                      <Plus className="w-3 h-3" /> Add Track
+                                    </button>
+                                  </div>
+                                  {(ep.audioTracks || []).map((track, trackIdx) => (
+                                    <div key={trackIdx} className="flex items-center gap-2 bg-[#141414] p-2 rounded border border-gray-800">
+                                      <input type="text" placeholder="Name" value={track.name} onChange={(e) => handleEpisodeAudioTrackChange(seasonIndex, episodeIndex, trackIdx, "name", e.target.value)} required className="flex-1 bg-[#2a2a2a] text-white p-1.5 text-xs rounded focus:outline-none focus:ring-1 focus:ring-primary" />
+                                      <input type="text" placeholder="Lang" value={track.lang} onChange={(e) => handleEpisodeAudioTrackChange(seasonIndex, episodeIndex, trackIdx, "lang", e.target.value)} className="w-16 bg-[#2a2a2a] text-white p-1.5 text-xs rounded focus:outline-none focus:ring-1 focus:ring-primary" />
+                                      <input type="text" placeholder="URL" value={track.url} onChange={(e) => handleEpisodeAudioTrackChange(seasonIndex, episodeIndex, trackIdx, "url", e.target.value)} required className="flex-[2] bg-[#2a2a2a] text-white p-1.5 text-xs rounded focus:outline-none focus:ring-1 focus:ring-primary" />
+                                      <label className="flex items-center text-xs text-gray-400 gap-1 cursor-pointer">
+                                        <input type="checkbox" checked={track.default} onChange={(e) => handleEpisodeAudioTrackChange(seasonIndex, episodeIndex, trackIdx, "default", e.target.checked)} className="accent-primary" /> Def
+                                      </label>
+                                      <button type="button" onClick={() => removeEpisodeAudioTrack(seasonIndex, episodeIndex, trackIdx)} className="text-gray-500 hover:text-red-500 p-1"><Trash2 className="w-3 h-3" /></button>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
                             ))}

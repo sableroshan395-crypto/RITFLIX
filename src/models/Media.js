@@ -39,8 +39,10 @@ const MediaSchema = new mongoose.Schema(
       ],
     },
     audioTracks: [{
-      label: { type: String, required: true },
-      url: { type: String, required: true }
+      name: { type: String, required: true },
+      lang: { type: String, default: "" },
+      url: { type: String, required: true },
+      default: { type: Boolean, default: false }
     }],
     seasons: [{
       seasonNumber: { type: Number, required: true },
@@ -50,8 +52,10 @@ const MediaSchema = new mongoose.Schema(
         duration: { type: String, default: "" },
         videoSource: { type: String, required: true },
         audioTracks: [{
-          label: { type: String, required: true },
-          url: { type: String, required: true }
+          name: { type: String, required: true },
+          lang: { type: String, default: "" },
+          url: { type: String, required: true },
+          default: { type: Boolean, default: false }
         }]
       }]
     }],
