@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, useRef } from "react";
+import { useState, useEffect, useMemo, Suspense, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, SkipForward } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -26,12 +26,15 @@ function WatchPlayer() {
   const [loading, setLoading] = useState(true);
   const [isIdle, setIsIdle] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [mobileStarted, setMobileStarted] = useState(false);
   const [activeAudioIdx, setActiveAudioIdx] = useState(0);
   const [showAudioMenu, setShowAudioMenu] = useState(false);
   const [playerErrorMsg, setPlayerErrorMsg] = useState(null);
   const idleTimeoutRef = useRef(null);
   const containerRef = useRef(null);
+
+  // ── All hooks MUST be above any conditional returns ──────────────────────
 
   const resetIdleTimer = () => {
     setIsIdle(false);
@@ -46,6 +49,17 @@ function WatchPlayer() {
     };
   }, []);
 
+  // Mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Fetch media data
   useEffect(() => {
     const fetchMedia = async () => {
       try {
@@ -70,74 +84,82 @@ function WatchPlayer() {
     fetchMedia();
   }, [id]);
 
-  // ── Loading / error screens ──────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-black">
-        <div className="vp-spinner" />
-      </div>
-    );
-  }
+  // ── Derive current video source and navigation from media ───────────────
+  const derived = useMemo(() => {
+    if (!media) {
+      return {
+        currentVideoSource: null,
+        currentAudioTracks: [],
+        episodeTitle: "",
+        contextTitle: "",
+        hasNextEpisode: false,
+        nextEpisodeUrl: "",
+      };
+    }
 
-  if (!media) {
-    return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-black text-white gap-4">
-        <h1 className="text-2xl">Media not found</h1>
-        <button
-          onClick={() => router.back()}
-          className="text-[#e50914] hover:underline"
-        >
-          Go Back
-        </button>
-      </div>
-    );
-  }
+    const hasSeasons = media.seasons && media.seasons.length > 0;
 
-  // ── Determine current video source and navigation ────────────────────────
-  const hasSeasons = media.seasons && media.seasons.length > 0;
+    let currentVideoSource = media.videoSource;
+    let currentAudioTracks = media.audioTracks || [];
+    let episodeTitle = "";
+    let contextTitle = media.title;
+    let hasNextEpisode = false;
+    let nextEpisodeUrl = "";
 
-  let currentVideoSource = media.videoSource;
-  let currentAudioTracks = media.audioTracks || [];
-  let episodeTitle = "";
-  let contextTitle = media.title;
-  let hasNextEpisode = false;
-  let nextEpisodeUrl = "";
+    if (hasSeasons) {
+      const sIndex = seasonQuery ? parseInt(seasonQuery, 10) : 0;
+      const epIndex = episodeQuery ? parseInt(episodeQuery, 10) : 0;
 
-  if (hasSeasons) {
-    const sIndex = seasonQuery ? parseInt(seasonQuery, 10) : 0;
-    const epIndex = episodeQuery ? parseInt(episodeQuery, 10) : 0;
+      if (media.seasons[sIndex] && media.seasons[sIndex].episodes[epIndex]) {
+        const ep = media.seasons[sIndex].episodes[epIndex];
+        const season = media.seasons[sIndex];
 
-    if (media.seasons[sIndex] && media.seasons[sIndex].episodes[epIndex]) {
-      const ep = media.seasons[sIndex].episodes[epIndex];
-      const season = media.seasons[sIndex];
+        currentVideoSource = ep.videoSource;
+        currentAudioTracks = ep.audioTracks || [];
+        episodeTitle = ep.title;
+        contextTitle = `${media.title} • S${season.seasonNumber}:E${ep.episodeNumber}`;
 
-      currentVideoSource = ep.videoSource;
-      currentAudioTracks = ep.audioTracks || [];
-      episodeTitle = ep.title;
-      contextTitle = `${media.title} • S${season.seasonNumber}:E${ep.episodeNumber}`;
-
-      if (media.seasons[sIndex].episodes[epIndex + 1]) {
-        hasNextEpisode = true;
-        nextEpisodeUrl = `/watch/${media._id}?season=${sIndex}&episode=${epIndex + 1}`;
-      } else if (
-        media.seasons[sIndex + 1] &&
-        media.seasons[sIndex + 1].episodes[0]
-      ) {
-        hasNextEpisode = true;
-        nextEpisodeUrl = `/watch/${media._id}?season=${sIndex + 1}&episode=0`;
+        if (media.seasons[sIndex].episodes[epIndex + 1]) {
+          hasNextEpisode = true;
+          nextEpisodeUrl = `/watch/${media._id}?season=${sIndex}&episode=${epIndex + 1}`;
+        } else if (
+          media.seasons[sIndex + 1] &&
+          media.seasons[sIndex + 1].episodes[0]
+        ) {
+          hasNextEpisode = true;
+          nextEpisodeUrl = `/watch/${media._id}?season=${sIndex + 1}&episode=0`;
+        }
+      } else if (media.seasons[0] && media.seasons[0].episodes[0]) {
+        currentVideoSource = media.seasons[0].episodes[0].videoSource;
+        currentAudioTracks = media.seasons[0].episodes[0].audioTracks || [];
       }
-    } else if (media.seasons[0] && media.seasons[0].episodes[0]) {
-      currentVideoSource = media.seasons[0].episodes[0].videoSource;
-      currentAudioTracks = media.seasons[0].episodes[0].audioTracks || [];
     }
-  }
 
-  useEffect(() => {
-    if (media) {
-      const defIdx = currentAudioTracks.findIndex(t => t.default);
-      setActiveAudioIdx(defIdx !== -1 ? defIdx : 0);
-    }
+    return {
+      currentVideoSource,
+      currentAudioTracks,
+      episodeTitle,
+      contextTitle,
+      hasNextEpisode,
+      nextEpisodeUrl,
+    };
   }, [media, seasonQuery, episodeQuery]);
+
+  const {
+    currentVideoSource,
+    currentAudioTracks,
+    episodeTitle,
+    contextTitle,
+    hasNextEpisode,
+    nextEpisodeUrl,
+  } = derived;
+
+  // Set default audio track index when media/episode changes
+  useEffect(() => {
+    if (!media || !currentAudioTracks || currentAudioTracks.length === 0) return;
+    const defIdx = currentAudioTracks.findIndex((t) => t.default);
+    setActiveAudioIdx(defIdx !== -1 ? defIdx : 0);
+  }, [media, seasonQuery, episodeQuery, currentAudioTracks]);
 
   // ── Interaction / fullscreen helpers ─────────────────────────────────────
   const handleInteraction = async () => {
@@ -180,17 +202,6 @@ function WatchPlayer() {
     router.back();
   };
 
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    handleResize(); // Initial check
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
   const handleMobileStart = async () => {
     setMobileStarted(true);
     if (containerRef.current) {
@@ -206,6 +217,30 @@ function WatchPlayer() {
       }
     }
   };
+
+  // ── NOW we can do conditional returns (all hooks are above) ──────────────
+
+  if (loading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-black">
+        <div className="vp-spinner" />
+      </div>
+    );
+  }
+
+  if (!media) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-black text-white gap-4">
+        <h1 className="text-2xl">Media not found</h1>
+        <button
+          onClick={() => router.back()}
+          className="text-[#e50914] hover:underline"
+        >
+          Go Back
+        </button>
+      </div>
+    );
+  }
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (isMobile && !mobileStarted) {

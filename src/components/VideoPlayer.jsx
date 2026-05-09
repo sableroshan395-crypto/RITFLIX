@@ -20,7 +20,6 @@ export default function VideoPlayer({
   const audioRef = useRef(null);
   const hlsVideoRef = useRef(null);
   const hlsAudioRef = useRef(null);
-  const syncIntervalRef = useRef(null);
 
   const [buffering, setBuffering] = useState(false);
   const [playerError, setPlayerError] = useState(null);
@@ -116,21 +115,43 @@ export default function VideoPlayer({
     }
   };
 
-  // ── Sync audio with video ────────────────────────────────────────────────
-  const syncAudioToVideo = useCallback(() => {
+  // ── Smooth sync: use playbackRate nudging for small drift, hard-jump only
+  //    for large drift. This eliminates audible clicks/skips. ───────────────
+  const HARD_SYNC_THRESHOLD = 0.5;  // seconds – hard-jump if drift exceeds this
+  const SOFT_SYNC_THRESHOLD = 0.05; // seconds – below this, audio is "in sync"
+  const RATE_NUDGE = 0.02;          // speed up / slow down by 2 %
+  const rafRef = useRef(null);
+  const userRateRef = useRef(1);     // track the user's chosen playback rate
+
+  const smoothSync = useCallback(() => {
     const video = videoRef.current;
     const audio = audioRef.current;
-    if (!video || !audio) return;
-
-    // Sync play / pause state
-    if (video.paused && !audio.paused) audio.pause();
-    if (!video.paused && audio.paused) audio.play().catch(() => {});
-
-    // Keep audio in sync (drift threshold 0.3s)
-    const drift = Math.abs(video.currentTime - audio.currentTime);
-    if (drift > 0.3) {
-      audio.currentTime = video.currentTime;
+    if (!video || !audio || video.paused) {
+      rafRef.current = requestAnimationFrame(smoothSync);
+      return;
     }
+
+    const drift = video.currentTime - audio.currentTime; // positive = audio behind
+    const absDrift = Math.abs(drift);
+    const baseRate = userRateRef.current;
+
+    if (absDrift > HARD_SYNC_THRESHOLD) {
+      // Large drift → hard-jump (only noticeable on seeks / long stalls)
+      audio.currentTime = video.currentTime;
+      audio.playbackRate = baseRate;
+    } else if (absDrift > SOFT_SYNC_THRESHOLD) {
+      // Small drift → gently nudge playback rate
+      audio.playbackRate = drift > 0
+        ? baseRate + RATE_NUDGE   // audio behind → speed it up
+        : baseRate - RATE_NUDGE;  // audio ahead  → slow it down
+    } else {
+      // In sync → restore normal rate
+      if (audio.playbackRate !== baseRate) {
+        audio.playbackRate = baseRate;
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(smoothSync);
   }, []);
 
   // ── Setup sync listeners ─────────────────────────────────────────────────
@@ -139,27 +160,40 @@ export default function VideoPlayer({
     const audio = audioRef.current;
     if (!video || !audio) return;
 
-    const onPlay = () => { audio.currentTime = video.currentTime; audio.play().catch(() => {}); };
+    const onPlay = () => {
+      // Only hard-sync on initial play or resume after long pause
+      const drift = Math.abs(video.currentTime - audio.currentTime);
+      if (drift > HARD_SYNC_THRESHOLD) {
+        audio.currentTime = video.currentTime;
+      }
+      audio.play().catch(() => {});
+    };
     const onPause = () => audio.pause();
-    const onSeeked = () => { audio.currentTime = video.currentTime; };
-    const onRateChange = () => { audio.playbackRate = video.playbackRate; };
+    const onSeeked = () => {
+      // Hard-sync is fine on user-initiated seek
+      audio.currentTime = video.currentTime;
+    };
+    const onRateChange = () => {
+      userRateRef.current = video.playbackRate;
+      audio.playbackRate = video.playbackRate;
+    };
 
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
     video.addEventListener("seeked", onSeeked);
     video.addEventListener("ratechange", onRateChange);
 
-    // Periodic drift correction
-    syncIntervalRef.current = setInterval(syncAudioToVideo, 500);
+    // Start smooth sync loop via requestAnimationFrame
+    rafRef.current = requestAnimationFrame(smoothSync);
 
     return () => {
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("seeked", onSeeked);
       video.removeEventListener("ratechange", onRateChange);
-      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [syncAudioToVideo]);
+  }, [smoothSync]);
 
   // ── Main video setup ─────────────────────────────────────────────────────
   useEffect(() => {
