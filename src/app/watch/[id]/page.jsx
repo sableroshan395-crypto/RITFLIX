@@ -26,6 +26,9 @@ function WatchPlayer() {
   const [loading, setLoading] = useState(true);
   const [isIdle, setIsIdle] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [mobileStarted, setMobileStarted] = useState(false);
+  const [activeAudioIdx, setActiveAudioIdx] = useState(0);
+  const [showAudioMenu, setShowAudioMenu] = useState(false);
   const [playerErrorMsg, setPlayerErrorMsg] = useState(null);
   const idleTimeoutRef = useRef(null);
   const containerRef = useRef(null);
@@ -129,6 +132,13 @@ function WatchPlayer() {
     }
   }
 
+  useEffect(() => {
+    if (media) {
+      const defIdx = currentAudioTracks.findIndex(t => t.default);
+      setActiveAudioIdx(defIdx !== -1 ? defIdx : 0);
+    }
+  }, [media, seasonQuery, episodeQuery]);
+
   // ── Interaction / fullscreen helpers ─────────────────────────────────────
   const handleInteraction = async () => {
     resetIdleTimer();
@@ -170,7 +180,54 @@ function WatchPlayer() {
     router.back();
   };
 
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
+  const handleMobileStart = async () => {
+    setMobileStarted(true);
+    if (containerRef.current) {
+      try {
+        if (!document.fullscreenElement && containerRef.current.requestFullscreen) {
+          await containerRef.current.requestFullscreen();
+        }
+        if (screen.orientation && screen.orientation.lock) {
+          await screen.orientation.lock("landscape");
+        }
+      } catch (e) {
+        console.warn("Fullscreen/Orientation lock failed:", e);
+      }
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
+  if (isMobile && !mobileStarted) {
+    return (
+      <div
+        ref={containerRef}
+        className="h-screen w-full bg-[#141414] relative flex flex-col items-center justify-center text-white"
+      >
+        <div className="z-10 flex flex-col items-center gap-6 p-8 bg-[#181818] rounded-xl border border-gray-800 text-center shadow-2xl">
+          <div className="flex flex-col items-center gap-2">
+            <h1 className="text-xl font-bold text-white max-w-[250px] truncate">{contextTitle}</h1>
+            {episodeTitle && <h2 className="text-sm text-gray-400 max-w-[250px] truncate">{episodeTitle}</h2>}
+          </div>
+          <button
+            onClick={handleMobileStart}
+            className="bg-[#e50914] hover:bg-[#f40612] text-white px-8 py-4 rounded-full font-bold text-lg flex items-center gap-3 transition-transform hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(229,9,20,0.4)]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8">
+              <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+            </svg>
+            Tap to Play
+          </button>
+          <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+            Automatically rotates to landscape
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -185,6 +242,7 @@ function WatchPlayer() {
           <VideoPlayer
             src={currentVideoSource}
             audioTracks={currentAudioTracks}
+            activeAudioIdx={activeAudioIdx}
             autoPlay
             onError={(msg) => setPlayerErrorMsg(msg)}
           />
@@ -225,24 +283,76 @@ function WatchPlayer() {
             </div>
           </div>
 
-          {/* Next episode button */}
-          {hasNextEpisode && (
-            <button
-              onClick={() => {
-                setLoading(true);
-                router.push(nextEpisodeUrl);
-              }}
-              className="flex items-center gap-1 sm:gap-2 bg-white/10 hover:bg-white text-white hover:text-black border border-white/30 px-3 sm:px-4 py-1.5 md:px-6 md:py-2.5 rounded font-bold transition shadow-lg group backdrop-blur-sm shrink-0 mt-1"
-            >
-              <span className="text-xs sm:text-sm md:text-base hidden sm:inline-block">
-                Next Episode
-              </span>
-              <span className="text-xs sm:text-sm md:text-base sm:hidden">
-                Next
-              </span>
-              <SkipForward className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
-            </button>
-          )}
+          {/* Right side controls: Audio Switcher + Next Episode */}
+          <div className="flex items-center gap-2 md:gap-4 shrink-0 mt-1 relative">
+            {currentAudioTracks && currentAudioTracks.length > 1 && (
+              <div className="relative pointer-events-auto">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAudioMenu(!showAudioMenu);
+                  }}
+                  className="flex items-center gap-1 sm:gap-2 bg-black/60 hover:bg-black/80 text-white border border-white/20 px-3 sm:px-4 py-1.5 md:py-2.5 rounded font-medium transition backdrop-blur-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 md:w-5 md:h-5">
+                    <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                  </svg>
+                  <span className="text-xs sm:text-sm md:text-base hidden sm:inline-block max-w-[100px] truncate">
+                    {currentAudioTracks[activeAudioIdx]?.name || "Audio"}
+                  </span>
+                </button>
+
+                {showAudioMenu && (
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-black/95 border border-gray-800 rounded-lg shadow-2xl overflow-hidden py-1 z-50">
+                    <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-800">
+                      Audio Tracks
+                    </div>
+                    {currentAudioTracks.map((t, i) => (
+                      <button
+                        key={i}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveAudioIdx(i);
+                          setShowAudioMenu(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-white/10 transition ${i === activeAudioIdx ? "text-[#e50914] font-bold" : "text-white"}`}
+                      >
+                        {i === activeAudioIdx ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="w-4 h-4 shrink-0">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        ) : (
+                          <div className="w-4 h-4 shrink-0"></div>
+                        )}
+                        <span className="text-sm truncate">{t.name || t.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Next episode button */}
+            {hasNextEpisode && (
+              <button
+                onClick={() => {
+                  setLoading(true);
+                  router.push(nextEpisodeUrl);
+                }}
+                className="flex items-center gap-1 sm:gap-2 bg-white/10 hover:bg-white text-white hover:text-black border border-white/30 px-3 sm:px-4 py-1.5 md:px-6 md:py-2.5 rounded font-bold transition shadow-lg group backdrop-blur-sm pointer-events-auto"
+              >
+                <span className="text-xs sm:text-sm md:text-base hidden sm:inline-block">
+                  Next Episode
+                </span>
+                <span className="text-xs sm:text-sm md:text-base sm:hidden">
+                  Next
+                </span>
+                <SkipForward className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Player error toast (shown even when overlay fades) */}

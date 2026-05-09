@@ -12,6 +12,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 export default function VideoPlayer({
   src,
   audioTracks = [],
+  activeAudioIdx = 0,
   autoPlay = true,
   onError,
 }) {
@@ -23,12 +24,6 @@ export default function VideoPlayer({
 
   const [buffering, setBuffering] = useState(false);
   const [playerError, setPlayerError] = useState(null);
-  const [activeAudioIdx, setActiveAudioIdx] = useState(() => {
-    if (!audioTracks || audioTracks.length === 0) return 0;
-    const defIdx = audioTracks.findIndex((t) => t.default);
-    return defIdx !== -1 ? defIdx : 0;
-  });
-  const [showAudioMenu, setShowAudioMenu] = useState(false);
 
   const isGoogleDrive = src && src.includes("drive.google.com");
   const isHLS = src && src.includes(".m3u8");
@@ -166,14 +161,6 @@ export default function VideoPlayer({
     };
   }, [syncAudioToVideo]);
 
-  // Handle src changes to reset default track
-  useEffect(() => {
-    if (audioTracks && audioTracks.length > 0) {
-      const defIdx = audioTracks.findIndex((t) => t.default);
-      setActiveAudioIdx(defIdx !== -1 ? defIdx : 0);
-    }
-  }, [src]);
-
   // ── Main video setup ─────────────────────────────────────────────────────
   useEffect(() => {
     if (isGoogleDrive || !src) return;
@@ -255,14 +242,6 @@ export default function VideoPlayer({
     };
   }, [activeAudioIdx, audioTracks, hasAudioTracks, isGoogleDrive, loadSource, setupSync]);
 
-  // ── Close audio menu on outside click ────────────────────────────────────
-  useEffect(() => {
-    if (!showAudioMenu) return;
-    const close = () => setShowAudioMenu(false);
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [showAudioMenu]);
-
   // ── Google Drive renderer ─────────────────────────────────────────────────
   if (isGoogleDrive) {
     return (
@@ -319,51 +298,6 @@ export default function VideoPlayer({
           >
             Retry
           </button>
-        </div>
-      )}
-
-      {/* Audio track switcher button */}
-      {hasAudioTracks && audioTracks.length > 1 && (
-        <div className="vp-audio-switcher" onClick={(e) => e.stopPropagation()}>
-          <button
-            className="vp-audio-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowAudioMenu((v) => !v);
-            }}
-            title="Audio Track"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="vp-audio-icon">
-              <path d="M11 5L6 9H2v6h4l5 4V5z" />
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-            </svg>
-            <span className="vp-audio-label">{audioTracks[activeAudioIdx]?.name || audioTracks[activeAudioIdx]?.label || "Audio"}</span>
-          </button>
-
-          {showAudioMenu && (
-            <div className="vp-audio-menu">
-              <div className="vp-audio-menu-title">Audio Track</div>
-              {audioTracks.map((t, i) => (
-                <button
-                  key={i}
-                  className={`vp-audio-menu-item ${i === activeAudioIdx ? "active" : ""}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveAudioIdx(i);
-                    setShowAudioMenu(false);
-                  }}
-                >
-                  {i === activeAudioIdx && (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="vp-check-icon">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
-                  {t.name || t.label}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
