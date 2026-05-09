@@ -180,7 +180,16 @@ function WatchPlayer() {
     router.back();
   };
 
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize(); // Initial check
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const handleMobileStart = async () => {
     setMobileStarted(true);
@@ -244,7 +253,7 @@ function WatchPlayer() {
             audioTracks={currentAudioTracks}
             activeAudioIdx={activeAudioIdx}
             autoPlay
-            onError={(msg) => setPlayerErrorMsg(msg)}
+            onError={setPlayerErrorMsg}
           />
         ) : (
           <div className="h-full w-full flex items-center justify-center">
