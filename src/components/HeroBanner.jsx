@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const SLIDE_DURATION = 7000; // 7 seconds per slide
+const SLIDE_DURATION = 4000; // 4 seconds per slide
 
 const HeroBanner = ({ featuredMedia = [] }) => {
   // Normalize to array — support both single item and array
