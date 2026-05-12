@@ -24,8 +24,15 @@ async function getMediaData() {
 
   const serializedMedia = allMedia.map(serialize);
 
+  // Collect all featured items for the hero carousel
+  const featuredItems = serializedMedia.filter(m => m.isFeatured);
+  // Fallback: if no items are marked as featured, use the first 5 most recent
+  const heroBannerItems = featuredItems.length > 0 
+    ? featuredItems 
+    : serializedMedia.slice(0, 5);
+
   return {
-    featured: serializedMedia.find(m => m.isFeatured) || serializedMedia[0] || null,
+    featured: heroBannerItems,
     trending: serializedMedia,
     anime: serializedMedia.filter(m => m.type === "Anime"),
     movies: serializedMedia.filter(m => m.type === "Movie"),

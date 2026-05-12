@@ -423,7 +423,7 @@ export default function AdminDashboard() {
                         onChange={handleChange}
                         className="w-5 h-5 accent-primary cursor-pointer"
                       />
-                      Feature on Hero Banner
+                      Feature on Hero Carousel
                     </label>
                   </div>
                 </div>
