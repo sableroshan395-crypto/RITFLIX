@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Plus, Trash2, Edit } from "lucide-react";
+import { Upload, Plus, Trash2, Edit, FileText, Zap } from "lucide-react";
 import Navbar from "@/components/Navbar";
 
 export default function AdminDashboard() {
@@ -234,6 +234,84 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("add"); 
   const [mediaList, setMediaList] = useState([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
+
+  // ── Bulk Import state ────────────────────────────────────────────────────
+  const [bulkImportOpen, setBulkImportOpen] = useState(null); // seasonIndex or null
+  const [bulkVideoUrls, setBulkVideoUrls] = useState("");
+  const [bulkTitlePrefix, setBulkTitlePrefix] = useState("Episode");
+  const [bulkStartNum, setBulkStartNum] = useState(1);
+  const [bulkSharedAudio, setBulkSharedAudio] = useState([]);
+  const [batchCount, setBatchCount] = useState(5);
+
+  const addBulkSharedAudio = () => {
+    setBulkSharedAudio(prev => [...prev, { name: "", lang: "", url: "", default: prev.length === 0 }]);
+  };
+
+  const removeBulkSharedAudio = (idx) => {
+    setBulkSharedAudio(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleBulkSharedAudioChange = (idx, field, value) => {
+    setBulkSharedAudio(prev => {
+      const updated = [...prev];
+      if (field === "default" && value === true) {
+        updated.forEach(t => t.default = false);
+      }
+      updated[idx] = { ...updated[idx], [field]: value };
+      return updated;
+    });
+  };
+
+  const handleBulkImport = (seasonIndex) => {
+    const lines = bulkVideoUrls.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length === 0) return;
+
+    const newSeasons = [...formData.seasons];
+    const existingCount = newSeasons[seasonIndex].episodes.length;
+    const startNum = parseInt(bulkStartNum, 10) || (existingCount + 1);
+
+    const newEpisodes = lines.map((url, i) => ({
+      episodeNumber: existingCount + i + 1,
+      title: `${bulkTitlePrefix} ${startNum + i}`,
+      duration: "",
+      videoSource: url,
+      audioTracks: bulkSharedAudio.length > 0
+        ? bulkSharedAudio.map(t => ({ ...t }))
+        : [],
+    }));
+
+    newSeasons[seasonIndex].episodes = [
+      ...newSeasons[seasonIndex].episodes,
+      ...newEpisodes,
+    ];
+
+    setFormData({ ...formData, seasons: newSeasons });
+    setBulkImportOpen(null);
+    setBulkVideoUrls("");
+    setBulkSharedAudio([]);
+    setBulkTitlePrefix("Episode");
+    setBulkStartNum(existingCount + 1);
+  };
+
+  const handleBatchAdd = (seasonIndex) => {
+    const count = parseInt(batchCount, 10);
+    if (!count || count < 1) return;
+
+    const newSeasons = [...formData.seasons];
+    const existingCount = newSeasons[seasonIndex].episodes.length;
+
+    for (let i = 0; i < count; i++) {
+      newSeasons[seasonIndex].episodes.push({
+        episodeNumber: existingCount + i + 1,
+        title: `Episode ${existingCount + i + 1}`,
+        duration: "",
+        videoSource: "",
+        audioTracks: [],
+      });
+    }
+
+    setFormData({ ...formData, seasons: newSeasons });
+  };
 
   const fetchMediaList = async () => {
     setLoadingMedia(true);
@@ -506,7 +584,18 @@ export default function AdminDashboard() {
                           
                           <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-800">
                             <h4 className="font-bold text-white text-lg">Season {season.seasonNumber}</h4>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setBulkImportOpen(seasonIndex);
+                                  setBulkStartNum(season.episodes.length + 1);
+                                }}
+                                className="flex items-center gap-1 text-sm bg-green-600/20 hover:bg-green-600/40 text-green-400 px-3 py-1 rounded transition border border-green-600/30"
+                                title="Bulk import episodes from pasted URLs"
+                              >
+                                <Zap className="w-4 h-4" /> Bulk Import
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => addEpisode(seasonIndex)}
@@ -594,6 +683,120 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Bulk Import Modal ─────────────────────────────────── */}
+                {bulkImportOpen !== null && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div className="bg-[#1a1a1a] border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-5">
+                      <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                          <Zap className="w-5 h-5 text-green-400" />
+                          Bulk Import — Season {formData.seasons[bulkImportOpen]?.seasonNumber}
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => { setBulkImportOpen(null); setBulkVideoUrls(""); setBulkSharedAudio([]); }}
+                          className="text-gray-500 hover:text-white text-xl leading-none px-2"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="bg-[#141414] border border-gray-800 rounded-lg p-4 text-xs text-gray-400 space-y-1">
+                        <p className="text-gray-300 font-medium text-sm">📋 How it works:</p>
+                        <p>• Paste one video URL per line below</p>
+                        <p>• Each line = one episode, numbered automatically</p>
+                        <p>• Optionally add shared audio tracks that apply to ALL episodes</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-xs text-gray-400">Title Prefix</label>
+                          <input
+                            type="text"
+                            value={bulkTitlePrefix}
+                            onChange={(e) => setBulkTitlePrefix(e.target.value)}
+                            className="w-full bg-[#2a2a2a] text-white p-2 text-sm rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                            placeholder="Episode"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-gray-400">Start Number</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={bulkStartNum}
+                            onChange={(e) => setBulkStartNum(e.target.value)}
+                            className="w-full bg-[#2a2a2a] text-white p-2 text-sm rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-400">Video URLs (one per line)</label>
+                        <textarea
+                          value={bulkVideoUrls}
+                          onChange={(e) => setBulkVideoUrls(e.target.value)}
+                          rows={8}
+                          className="w-full bg-[#2a2a2a] text-white p-3 text-sm rounded focus:outline-none focus:ring-1 focus:ring-primary resize-none font-mono"
+                          placeholder={"https://example.com/ep1.m3u8\nhttps://example.com/ep2.m3u8\nhttps://example.com/ep3.m3u8"}
+                        />
+                        <p className="text-xs text-gray-500">
+                          {bulkVideoUrls.split("\n").filter(l => l.trim()).length} episode(s) detected
+                        </p>
+                      </div>
+
+                      {/* Shared Audio Tracks */}
+                      <div className="border border-gray-700 rounded-lg p-4 bg-[#141414] space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-300">Shared Audio Tracks (applied to all episodes)</span>
+                          <button
+                            type="button"
+                            onClick={addBulkSharedAudio}
+                            className="text-xs text-primary hover:text-white transition flex items-center gap-1"
+                          >
+                            <Plus className="w-3 h-3" /> Add Track
+                          </button>
+                        </div>
+                        {bulkSharedAudio.length === 0 && (
+                          <p className="text-xs text-gray-500 italic">No shared audio tracks — episodes will have video audio only.</p>
+                        )}
+                        {bulkSharedAudio.map((track, idx) => (
+                          <div key={idx} className="flex items-center gap-2 bg-[#1e1e1e] p-2 rounded border border-gray-800">
+                            <input type="text" placeholder="Name (e.g. Hindi)" value={track.name} onChange={(e) => handleBulkSharedAudioChange(idx, "name", e.target.value)} className="flex-1 bg-[#2a2a2a] text-white p-1.5 text-xs rounded focus:outline-none focus:ring-1 focus:ring-primary" />
+                            <input type="text" placeholder="Lang" value={track.lang} onChange={(e) => handleBulkSharedAudioChange(idx, "lang", e.target.value)} className="w-16 bg-[#2a2a2a] text-white p-1.5 text-xs rounded focus:outline-none focus:ring-1 focus:ring-primary" />
+                            <input type="text" placeholder="Audio URL" value={track.url} onChange={(e) => handleBulkSharedAudioChange(idx, "url", e.target.value)} className="flex-[2] bg-[#2a2a2a] text-white p-1.5 text-xs rounded focus:outline-none focus:ring-1 focus:ring-primary" />
+                            <label className="flex items-center text-xs text-gray-400 gap-1 cursor-pointer">
+                              <input type="checkbox" checked={track.default} onChange={(e) => handleBulkSharedAudioChange(idx, "default", e.target.checked)} className="accent-primary" /> Def
+                            </label>
+                            <button type="button" onClick={() => removeBulkSharedAudio(idx)} className="text-gray-500 hover:text-red-500 p-1">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => { setBulkImportOpen(null); setBulkVideoUrls(""); setBulkSharedAudio([]); }}
+                          className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2.5 rounded font-semibold transition"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleBulkImport(bulkImportOpen)}
+                          disabled={bulkVideoUrls.split("\n").filter(l => l.trim()).length === 0}
+                          className="flex-1 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 text-white py-2.5 rounded font-bold transition flex items-center justify-center gap-2"
+                        >
+                          <Zap className="w-4 h-4" />
+                          Import {bulkVideoUrls.split("\n").filter(l => l.trim()).length} Episodes
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
