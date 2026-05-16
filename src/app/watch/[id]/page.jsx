@@ -31,6 +31,7 @@ function WatchPlayer() {
   const [activeAudioIdx, setActiveAudioIdx] = useState(0);
   const [showAudioMenu, setShowAudioMenu] = useState(false);
   const [playerErrorMsg, setPlayerErrorMsg] = useState(null);
+  const [isPortraitFullscreen, setIsPortraitFullscreen] = useState(false);
   const idleTimeoutRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -58,6 +59,29 @@ function WatchPlayer() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // ── Detect portrait fullscreen (mobile) to apply CSS landscape rotation ──
+  useEffect(() => {
+    const checkPortraitFullscreen = () => {
+      const isFs = !!document.fullscreenElement;
+      const isPortrait = window.innerHeight > window.innerWidth;
+      setIsPortraitFullscreen(isFs && isPortrait && isMobile);
+    };
+
+    document.addEventListener("fullscreenchange", checkPortraitFullscreen);
+    window.addEventListener("resize", checkPortraitFullscreen);
+    if (screen.orientation) {
+      screen.orientation.addEventListener("change", checkPortraitFullscreen);
+    }
+
+    return () => {
+      document.removeEventListener("fullscreenchange", checkPortraitFullscreen);
+      window.removeEventListener("resize", checkPortraitFullscreen);
+      if (screen.orientation) {
+        screen.orientation.removeEventListener("change", checkPortraitFullscreen);
+      }
+    };
+  }, [isMobile]);
 
   // Fetch media data
   useEffect(() => {
@@ -178,11 +202,8 @@ function WatchPlayer() {
           ) {
             await containerRef.current.requestFullscreen();
           }
-          if (screen.orientation && screen.orientation.lock) {
-            await screen.orientation.lock("landscape");
-          }
         } catch (e) {
-          console.warn("Fullscreen/Orientation lock failed:", e);
+          console.warn("Fullscreen failed:", e);
         }
       }
     }
@@ -192,9 +213,6 @@ function WatchPlayer() {
     try {
       if (document.fullscreenElement && document.exitFullscreen) {
         await document.exitFullscreen();
-      }
-      if (screen.orientation && screen.orientation.unlock) {
-        screen.orientation.unlock();
       }
     } catch (e) {
       console.warn("Exit Fullscreen error:", e);
@@ -209,11 +227,8 @@ function WatchPlayer() {
         if (!document.fullscreenElement && containerRef.current.requestFullscreen) {
           await containerRef.current.requestFullscreen();
         }
-        if (screen.orientation && screen.orientation.lock) {
-          await screen.orientation.lock("landscape");
-        }
       } catch (e) {
-        console.warn("Fullscreen/Orientation lock failed:", e);
+        console.warn("Fullscreen failed:", e);
       }
     }
   };
@@ -264,18 +279,35 @@ function WatchPlayer() {
             Tap to Play
           </button>
           <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
-            Automatically rotates to landscape
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><rect width="20" height="16" x="2" y="4" rx="2" ry="2"/><path d="M12 16h.01"/></svg>
+            Opens in fullscreen landscape
           </p>
         </div>
       </div>
     );
   }
 
+  // ── Portrait-fullscreen rotation styles ────────────────────────────────
+  const portraitFsStyle = isPortraitFullscreen
+    ? {
+        transform: "rotate(90deg)",
+        transformOrigin: "center center",
+        width: "100vh",
+        height: "100vw",
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        marginTop: "calc(-50vw)",
+        marginLeft: "calc(-50vh)",
+        zIndex: 9999,
+      }
+    : {};
+
   return (
     <div
       ref={containerRef}
       className="h-screen w-full bg-black relative overflow-hidden flex flex-col"
+      style={portraitFsStyle}
       onMouseMove={handleInteraction}
       onClick={handleInteraction}
       onTouchStart={handleInteraction}
@@ -284,6 +316,7 @@ function WatchPlayer() {
       <div className="absolute inset-0 z-0">
         {currentVideoSource ? (
           <VideoPlayer
+            key={`${seasonQuery}-${episodeQuery}-${currentVideoSource}`}
             src={currentVideoSource}
             audioTracks={currentAudioTracks}
             activeAudioIdx={activeAudioIdx}
@@ -382,7 +415,6 @@ function WatchPlayer() {
             {hasNextEpisode && (
               <button
                 onClick={() => {
-                  setLoading(true);
                   router.push(nextEpisodeUrl);
                 }}
                 className="flex items-center gap-1 sm:gap-2 bg-white/10 hover:bg-white text-white hover:text-black border border-white/30 px-3 sm:px-4 py-1.5 md:px-6 md:py-2.5 rounded font-bold transition shadow-lg group backdrop-blur-sm pointer-events-auto"

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 /**
  * Unified video player supporting:
+ *  - YouTube       → <iframe> embed (supports youtube.com/watch, youtu.be, youtube.com/embed)
  *  - Google Drive  → <iframe>
  *  - .m3u8 HLS     → <video> + hls.js (or native on Safari)
  *  - Direct MP4    → <video>
@@ -24,9 +25,58 @@ export default function VideoPlayer({
   const [buffering, setBuffering] = useState(false);
   const [playerError, setPlayerError] = useState(null);
 
+  // Track user mute intent separately from the forced video mute
+  const userMutedRef = useRef(false);
+  const userVolumeRef = useRef(1);
+
+  // ── Source type detection ─────────────────────────────────────────────────
+  const isYouTube = src && (
+    src.includes("youtube.com/watch") ||
+    src.includes("youtu.be/") ||
+    src.includes("youtube.com/embed/") ||
+    src.includes("youtube.com/shorts/")
+  );
   const isGoogleDrive = src && src.includes("drive.google.com");
   const isHLS = src && src.includes(".m3u8");
   const hasAudioTracks = audioTracks && audioTracks.length > 0;
+
+  // ── YouTube helpers ───────────────────────────────────────────────────────
+  const getYouTubeEmbedUrl = (url) => {
+    try {
+      let videoId = null;
+
+      // youtube.com/watch?v=VIDEO_ID
+      if (url.includes("youtube.com/watch")) {
+        const urlObj = new URL(url);
+        videoId = urlObj.searchParams.get("v");
+      }
+      // youtu.be/VIDEO_ID
+      else if (url.includes("youtu.be/")) {
+        videoId = url.split("youtu.be/")[1].split(/[?&#]/)[0];
+      }
+      // youtube.com/embed/VIDEO_ID (already embed format)
+      else if (url.includes("youtube.com/embed/")) {
+        videoId = url.split("youtube.com/embed/")[1].split(/[?&#]/)[0];
+      }
+      // youtube.com/shorts/VIDEO_ID
+      else if (url.includes("youtube.com/shorts/")) {
+        videoId = url.split("youtube.com/shorts/")[1].split(/[?&#]/)[0];
+      }
+
+      if (videoId) {
+        const params = new URLSearchParams({
+          autoplay: autoPlay ? "1" : "0",
+          rel: "0",           // don't show related videos from other channels
+          modestbranding: "1", // minimal YouTube branding
+          fs: "1",            // allow fullscreen
+          iv_load_policy: "3", // hide annotations
+          cc_load_policy: "0", // hide captions by default
+        });
+        return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
+      }
+    } catch (_) {}
+    return url;
+  };
 
   // ── Google Drive helpers ──────────────────────────────────────────────────
   const getDrivePreviewUrl = (url) => {
@@ -197,7 +247,7 @@ export default function VideoPlayer({
 
   // ── Main video setup ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (isGoogleDrive || !src) return;
+    if (isGoogleDrive || isYouTube || !src) return;
 
     const video = videoRef.current;
     if (!video) return;
@@ -227,9 +277,51 @@ export default function VideoPlayer({
     video.addEventListener("playing", handlePlaying);
     video.addEventListener("error", handleError);
 
-    // If we have audio tracks, mute the video element
+    // If we have audio tracks, mute the video element (audio comes from <audio>)
     if (hasAudioTracks) {
       video.muted = true;
+
+      // Mirror native volume/mute controls to the hidden audio element
+      let isSelfUpdate = false;
+      const handleVolumeChange = () => {
+        if (isSelfUpdate) return; // guard against infinite loop
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        // Detect user mute intent: the native controls toggle video.muted
+        // even though we force it back to true.
+        // When the user clicks mute on native controls, video.muted becomes
+        // false (since it was true). We detect this and toggle our own state.
+        if (!video.muted) {
+          // User toggled mute via native controls
+          userMutedRef.current = !userMutedRef.current;
+          // Force video back to muted (audio comes from <audio>)
+          isSelfUpdate = true;
+          video.muted = true;
+          isSelfUpdate = false;
+        }
+
+        // Mirror volume level
+        userVolumeRef.current = video.volume;
+        audio.volume = video.volume;
+        audio.muted = userMutedRef.current;
+      };
+
+      video.addEventListener("volumechange", handleVolumeChange);
+
+      loadSource(src, video, hlsVideoRef, () => {
+        setBuffering(false);
+        if (autoPlay) video.play().catch(() => {});
+      });
+
+      return () => {
+        video.removeEventListener("canplay", handleCanPlay);
+        video.removeEventListener("waiting", handleWaiting);
+        video.removeEventListener("playing", handlePlaying);
+        video.removeEventListener("error", handleError);
+        video.removeEventListener("volumechange", handleVolumeChange);
+        destroyHls(hlsVideoRef);
+      };
     }
 
     loadSource(src, video, hlsVideoRef, () => {
@@ -248,7 +340,7 @@ export default function VideoPlayer({
 
   // ── Audio track setup — runs when activeAudioIdx or audioTracks change ───
   useEffect(() => {
-    if (!hasAudioTracks || isGoogleDrive) return;
+    if (!hasAudioTracks || isGoogleDrive || isYouTube) return;
 
     const audio = audioRef.current;
     if (!audio) return;
@@ -258,10 +350,16 @@ export default function VideoPlayer({
     const track = audioTracks[activeAudioIdx];
     if (!track || !track.url) return;
 
+    // Apply current user volume/mute state to the audio element
+    audio.volume = userVolumeRef.current;
+    audio.muted = userMutedRef.current;
+
     loadSource(track.url, audio, hlsAudioRef, () => {
       const video = videoRef.current;
       if (video) {
         audio.currentTime = video.currentTime;
+        audio.volume = userVolumeRef.current;
+        audio.muted = userMutedRef.current;
         if (!video.paused) {
           audio.play().catch(() => {});
         }
@@ -274,7 +372,25 @@ export default function VideoPlayer({
       cleanupSync && cleanupSync();
       destroyHls(hlsAudioRef);
     };
-  }, [activeAudioIdx, audioTracks, hasAudioTracks, isGoogleDrive, loadSource, setupSync]);
+  }, [activeAudioIdx, audioTracks, hasAudioTracks, isGoogleDrive, isYouTube, loadSource, setupSync]);
+
+  // ── YouTube renderer ──────────────────────────────────────────────────────
+  if (isYouTube) {
+    return (
+      <div className="vp-root">
+        <div className="vp-youtube-wrapper">
+          <iframe
+            src={getYouTubeEmbedUrl(src)}
+            className="vp-youtube-iframe"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+            allowFullScreen
+            title="Video Player"
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        </div>
+      </div>
+    );
+  }
 
   // ── Google Drive renderer ─────────────────────────────────────────────────
   if (isGoogleDrive) {

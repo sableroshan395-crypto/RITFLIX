@@ -33,8 +33,8 @@ const HeroBanner = ({ featuredMedia = [] }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
-  const progressRef = useRef(null);
   const startTimeRef = useRef(Date.now());
+  const isPausedRef = useRef(false); // ref mirror for RAF loop
 
   const goToSlide = useCallback(
     (index) => {
@@ -53,21 +53,34 @@ const HeroBanner = ({ featuredMedia = [] }) => {
     goToSlide((currentIndex - 1 + slides.length) % slides.length);
   }, [currentIndex, slides.length, goToSlide]);
 
+  // Keep ref in sync with state for use inside RAF loop
+  const handlePause = useCallback((paused) => {
+    setIsPaused(paused);
+    isPausedRef.current = paused;
+  }, []);
+
   // Auto-advance timer with progress tracking
   useEffect(() => {
     if (slides.length <= 1) return;
 
+    // Reset start time when slide changes
+    startTimeRef.current = Date.now();
+    setProgress(0);
+
     let animationFrame;
+    let cancelled = false;
 
     const tick = () => {
-      if (!isPaused) {
+      if (cancelled) return;
+
+      if (!isPausedRef.current) {
         const elapsed = Date.now() - startTimeRef.current;
         const pct = Math.min((elapsed / SLIDE_DURATION) * 100, 100);
         setProgress(pct);
 
         if (elapsed >= SLIDE_DURATION) {
-          goNext();
-          return;
+          setCurrentIndex((prev) => (prev + 1) % slides.length);
+          return; // effect will re-run with new currentIndex
         }
       }
       animationFrame = requestAnimationFrame(tick);
@@ -75,16 +88,16 @@ const HeroBanner = ({ featuredMedia = [] }) => {
 
     animationFrame = requestAnimationFrame(tick);
 
-    return () => cancelAnimationFrame(animationFrame);
-  }, [currentIndex, isPaused, slides.length, goNext]);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(animationFrame);
+    };
+  }, [currentIndex, slides.length]);
 
-  // Pause progress on hover
+  // Pause/resume: adjust startTime so progress continues seamlessly
   useEffect(() => {
-    if (isPaused) {
-      // When pausing, we need to remember how much time has passed
-      // so when we resume, we can continue from where we left off
-    } else {
-      // Resume: adjust startTime so elapsed matches current progress
+    if (!isPaused) {
+      // Resuming — recalculate start time based on current progress
       const elapsed = (progress / 100) * SLIDE_DURATION;
       startTimeRef.current = Date.now() - elapsed;
     }
@@ -118,8 +131,8 @@ const HeroBanner = ({ featuredMedia = [] }) => {
   return (
     <div
       className="relative w-full h-[60vh] sm:h-[70vh] md:h-[85vh] overflow-hidden group"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
+      onMouseEnter={() => handlePause(true)}
+      onMouseLeave={() => handlePause(false)}
     >
       {/* Background images with crossfade */}
       <AnimatePresence mode="sync">
