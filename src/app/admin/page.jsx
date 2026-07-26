@@ -22,6 +22,11 @@ export default function AdminDashboard() {
     videoSource: "",
     audioTracks: [],
     isFeatured: false,
+    isMCU: false,
+    mcuPhase: "Phase 1",
+    mcuSaga: "The Infinity Saga",
+    chronologicalOrder: 1,
+    releaseOrder: 1,
     seasons: [],
   };
 
@@ -45,7 +50,7 @@ export default function AdminDashboard() {
 
     setFormData({
       ...formData,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: type === "checkbox" ? checked : (name === "chronologicalOrder" || name === "releaseOrder" ? (parseInt(value, 10) || 0) : value),
     });
   };
 
@@ -161,6 +166,11 @@ export default function AdminDashboard() {
       videoSource: item.videoSource || "",
       audioTracks: item.audioTracks || [],
       isFeatured: item.isFeatured || false,
+      isMCU: item.isMCU || false,
+      mcuPhase: item.mcuPhase || "Phase 1",
+      mcuSaga: item.mcuSaga || "The Infinity Saga",
+      chronologicalOrder: item.chronologicalOrder || 1,
+      releaseOrder: item.releaseOrder || 1,
       seasons: item.seasons || [],
     });
     setActiveTab("add");
@@ -347,6 +357,107 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSeedMcuPresets = async () => {
+    if (!window.confirm("Seed starter MCU titles (Captain America, Captain Marvel, Iron Man, Loki) into your database?")) return;
+    setLoading(true);
+    setMessage("Seeding starter MCU titles...");
+    try {
+      const presets = [
+        {
+          title: "Captain America: The First Avenger",
+          description: "Steve Rogers, a rejected military soldier, transforms into Captain America after taking a dose of a 'Super-Soldier serum'. But being Captain America comes at a price as he attempts to take down a war mongering organization.",
+          type: "Movie",
+          genre: "Action/Sci-Fi",
+          duration: "2h 4m",
+          thumbnailUrl: "https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?q=80&w=1000",
+          bannerUrl: "https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?q=80&w=1200",
+          videoSource: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+          isMCU: true,
+          mcuPhase: "Phase 1",
+          mcuSaga: "The Infinity Saga",
+          chronologicalOrder: 1,
+          releaseOrder: 5,
+        },
+        {
+          title: "Captain Marvel",
+          description: "Carol Danvers becomes one of the universe's most powerful heroes when Earth is caught in the middle of a galactic war between two alien races.",
+          type: "Movie",
+          genre: "Action/Sci-Fi",
+          duration: "2h 4m",
+          thumbnailUrl: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1000",
+          bannerUrl: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?q=80&w=1200",
+          videoSource: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+          isMCU: true,
+          mcuPhase: "Phase 3",
+          mcuSaga: "The Infinity Saga",
+          chronologicalOrder: 2,
+          releaseOrder: 21,
+        },
+        {
+          title: "Iron Man",
+          description: "After being held captive in an Afghan cave, billionaire engineer Tony Stark creates a unique armored suit to fight evil.",
+          type: "Movie",
+          genre: "Action/Sci-Fi",
+          duration: "2h 6m",
+          thumbnailUrl: "https://images.unsplash.com/photo-1635863138275-d9b33299680b?q=80&w=1000",
+          bannerUrl: "https://images.unsplash.com/photo-1635863138275-d9b33299680b?q=80&w=1200",
+          videoSource: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+          isMCU: true,
+          mcuPhase: "Phase 1",
+          mcuSaga: "The Infinity Saga",
+          chronologicalOrder: 3,
+          releaseOrder: 1,
+        },
+        {
+          title: "Loki",
+          description: "The mercurial villain Loki resumes his role as the God of Mischief in a new series that takes place after the events of 'Avengers: Endgame'.",
+          type: "Series",
+          genre: "Sci-Fi/Fantasy",
+          thumbnailUrl: "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1000",
+          bannerUrl: "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1200",
+          isMCU: true,
+          mcuPhase: "Phase 4",
+          mcuSaga: "The Multiverse Saga",
+          chronologicalOrder: 24,
+          releaseOrder: 24,
+          seasons: [
+            {
+              seasonNumber: 1,
+              episodes: [
+                {
+                  episodeNumber: 1,
+                  title: "Glorious Purpose",
+                  duration: "51m",
+                  videoSource: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+                },
+                {
+                  episodeNumber: 2,
+                  title: "The Variant",
+                  duration: "54m",
+                  videoSource: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+                }
+              ]
+            }
+          ]
+        }
+      ];
+
+      for (const p of presets) {
+        await fetch("/api/media", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(p),
+        });
+      }
+      setMessage("Success: Starter MCU titles seeded successfully!");
+      if (activeTab === "manage") fetchMediaList();
+    } catch (err) {
+      setMessage("Error seeding MCU presets.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handlePasscodeSubmit = (e) => {
     e.preventDefault();
     if (passcode === "Ac80m4a1") {
@@ -394,24 +505,35 @@ export default function AdminDashboard() {
       <main className="pt-24 px-4 md:px-12 max-w-4xl mx-auto pb-12">
         <h1 className="text-3xl font-bold mb-8 text-primary">Admin Dashboard</h1>
         
-        <div className="flex gap-4 mb-6 border-b border-gray-800 pb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-gray-800 pb-2">
+          <div className="flex gap-4">
+            <button
+              onClick={() => {
+                setActiveTab("add");
+                if (!editingId) setFormData(initialFormState);
+              }}
+              className={`pb-2 px-4 font-semibold transition-colors ${activeTab === "add" ? "text-primary border-b-2 border-primary" : "text-gray-400 hover:text-white"}`}
+            >
+              {editingId ? "Edit Content" : "Add Content"}
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("manage");
+                fetchMediaList();
+              }}
+              className={`pb-2 px-4 font-semibold transition-colors ${activeTab === "manage" ? "text-primary border-b-2 border-primary" : "text-gray-400 hover:text-white"}`}
+            >
+              Manage Content
+            </button>
+          </div>
+
           <button
-            onClick={() => {
-              setActiveTab("add");
-              if (!editingId) setFormData(initialFormState);
-            }}
-            className={`pb-2 px-4 font-semibold transition-colors ${activeTab === "add" ? "text-primary border-b-2 border-primary" : "text-gray-400 hover:text-white"}`}
+            type="button"
+            onClick={handleSeedMcuPresets}
+            className="flex items-center gap-1.5 bg-red-950/80 hover:bg-red-900 border border-red-600/50 text-red-300 hover:text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition shadow-md self-start sm:self-auto"
           >
-            {editingId ? "Edit Content" : "Add Content"}
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab("manage");
-              fetchMediaList();
-            }}
-            className={`pb-2 px-4 font-semibold transition-colors ${activeTab === "manage" ? "text-primary border-b-2 border-primary" : "text-gray-400 hover:text-white"}`}
-          >
-            Manage Content
+            <span className="bg-red-600 text-white font-black px-1.5 py-0.5 rounded text-[10px]">MCU</span>
+            Seed Starter MCU Presets
           </button>
         </div>
 
@@ -492,7 +614,7 @@ export default function AdminDashboard() {
                     </div>
                   )}
                   
-                  <div className="space-y-2 flex items-end pb-3">
+                  <div className="space-y-2 flex flex-col justify-end pb-3 gap-2">
                     <label className="flex items-center gap-2 cursor-pointer text-gray-300">
                       <input
                         type="checkbox"
@@ -503,8 +625,89 @@ export default function AdminDashboard() {
                       />
                       Feature on Hero Carousel
                     </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-red-500 bg-red-950/40 p-2 rounded border border-red-700/40">
+                      <input
+                        type="checkbox"
+                        name="isMCU"
+                        checked={formData.isMCU}
+                        onChange={handleChange}
+                        className="w-5 h-5 accent-red-600 cursor-pointer"
+                      />
+                      <span className="bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded font-black">MARVEL</span>
+                      Add to Dedicated MCU Section
+                    </label>
                   </div>
                 </div>
+
+                {/* MCU Additional Metadata Box */}
+                {formData.isMCU && (
+                  <div className="bg-[#1b080a] border border-red-800/60 p-4 rounded-xl space-y-4 shadow-lg">
+                    <h4 className="text-sm font-black uppercase text-red-400 tracking-wider flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+                      MCU Timeline & Order Settings
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-300">MCU Phase</label>
+                        <select
+                          name="mcuPhase"
+                          value={formData.mcuPhase}
+                          onChange={handleChange}
+                          className="w-full bg-[#2a2a2a] text-white p-2.5 rounded border border-red-900/60 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                        >
+                          <option value="Phase 1">Phase 1</option>
+                          <option value="Phase 2">Phase 2</option>
+                          <option value="Phase 3">Phase 3</option>
+                          <option value="Phase 4">Phase 4</option>
+                          <option value="Phase 5">Phase 5</option>
+                          <option value="Phase 6">Phase 6</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-300">MCU Saga</label>
+                        <select
+                          name="mcuSaga"
+                          value={formData.mcuSaga}
+                          onChange={handleChange}
+                          className="w-full bg-[#2a2a2a] text-white p-2.5 rounded border border-red-900/60 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                        >
+                          <option value="The Infinity Saga">The Infinity Saga</option>
+                          <option value="The Multiverse Saga">The Multiverse Saga</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-300">Chronological Rank (#)</label>
+                        <input
+                          type="number"
+                          name="chronologicalOrder"
+                          value={formData.chronologicalOrder}
+                          onChange={handleChange}
+                          min="1"
+                          className="w-full bg-[#2a2a2a] text-white p-2.5 rounded border border-red-900/60 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                          placeholder="e.g. 1"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-300">Release Rank (#)</label>
+                        <input
+                          type="number"
+                          name="releaseOrder"
+                          value={formData.releaseOrder}
+                          onChange={handleChange}
+                          min="1"
+                          className="w-full bg-[#2a2a2a] text-white p-2.5 rounded border border-red-900/60 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                          placeholder="e.g. 1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-sm text-gray-400">Description</label>

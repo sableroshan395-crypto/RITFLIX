@@ -10,12 +10,27 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type"); // Movie, Series, Anime
     const isFeatured = searchParams.get("isFeatured");
+    const isMCU = searchParams.get("isMCU");
+    const phase = searchParams.get("phase");
+    const saga = searchParams.get("saga");
+    const sortBy = searchParams.get("sortBy"); // chronologicalOrder, releaseOrder, createdAt
 
     let query = {};
     if (type) query.type = type;
-    if (isFeatured) query.isFeatured = true;
+    if (isFeatured === "true") query.isFeatured = true;
+    if (isMCU === "true") query.isMCU = true;
+    if (isMCU === "false") query.isMCU = { $ne: true };
+    if (phase) query.mcuPhase = phase;
+    if (saga) query.mcuSaga = saga;
 
-    const mediaList = await Media.find(query).sort({ createdAt: -1 });
+    let sortOptions = { createdAt: -1 };
+    if (sortBy === "chronologicalOrder") {
+      sortOptions = { chronologicalOrder: 1, createdAt: -1 };
+    } else if (sortBy === "releaseOrder") {
+      sortOptions = { releaseOrder: 1, createdAt: -1 };
+    }
+
+    const mediaList = await Media.find(query).sort(sortOptions);
     return NextResponse.json(mediaList);
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch media" }, { status: 500 });

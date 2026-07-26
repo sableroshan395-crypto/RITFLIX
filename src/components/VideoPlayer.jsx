@@ -36,7 +36,7 @@ export default function VideoPlayer({
     src.includes("youtube.com/embed/") ||
     src.includes("youtube.com/shorts/")
   );
-  const isGoogleDrive = src && src.includes("drive.google.com");
+  const isGoogleDrive = src && (src.includes("drive.google.com") || src.includes("docs.google.com"));
   const isHLS = src && src.includes(".m3u8");
   const hasAudioTracks = audioTracks && audioTracks.length > 0;
 
@@ -81,9 +81,19 @@ export default function VideoPlayer({
   // ── Google Drive helpers ──────────────────────────────────────────────────
   const getDrivePreviewUrl = (url) => {
     try {
+      if (!url) return url;
+      // Handle /file/d/FILE_ID/
       if (url.includes("/file/d/")) {
-        const fileId = url.split("/file/d/")[1].split("/")[0];
+        const fileId = url.split("/file/d/")[1].split("/")[0].split("?")[0];
         return `https://drive.google.com/file/d/${fileId}/preview`;
+      }
+      // Handle ?id=FILE_ID or &id=FILE_ID
+      if (url.includes("id=")) {
+        const urlObj = new URL(url);
+        const fileId = urlObj.searchParams.get("id");
+        if (fileId) {
+          return `https://drive.google.com/file/d/${fileId}/preview`;
+        }
       }
     } catch (_) {}
     return url;

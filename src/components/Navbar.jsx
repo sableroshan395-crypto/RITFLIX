@@ -62,10 +62,19 @@ const Navbar = () => {
             <li className="hover:text-white cursor-pointer transition">
               <Link href="/my-list">My List</Link>
             </li>
+            <li className="cursor-pointer transition">
+              <Link href="/mcu" className="flex items-center gap-1.5 bg-gradient-to-r from-red-700 via-red-600 to-red-800 text-white font-extrabold px-3 py-1 rounded-md text-xs tracking-wider uppercase shadow-[0_0_12px_rgba(230,36,41,0.5)] border border-red-500/50 hover:scale-105 hover:shadow-[0_0_18px_rgba(230,36,41,0.8)] transition-all">
+                <span className="bg-white text-red-700 px-1 rounded text-[10px] font-black">MCU</span>
+                <span className="hidden lg:inline">HUB</span>
+              </Link>
+            </li>
           </ul>
         </div>
 
         <div className="flex items-center gap-4 md:gap-6 text-gray-300">
+          <Link href="/mcu" className="md:hidden flex items-center gap-1 bg-red-700 text-white text-xs font-black px-2 py-0.5 rounded border border-red-500">
+            MCU
+          </Link>
           <Link href="/search" onClick={() => setIsMobileMenuOpen(false)}>
             <Search className="w-5 h-5 cursor-pointer hover:text-white transition" />
           </Link>
@@ -91,6 +100,12 @@ const Navbar = () => {
             <ul className="flex flex-col py-4 px-6 text-gray-300 font-semibold text-lg gap-4">
               <li className="hover:text-white cursor-pointer transition pb-2 border-b border-gray-800">
                 <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>Home</Link>
+              </li>
+              <li className="hover:text-white cursor-pointer transition pb-2 border-b border-gray-800">
+                <Link href="/mcu" onClick={() => setIsMobileMenuOpen(false)} className="text-red-500 font-bold flex items-center gap-2">
+                  <span className="bg-red-600 text-white text-xs px-2 py-0.5 rounded font-black">MARVEL</span>
+                  MCU Environment
+                </Link>
               </li>
               <li className="hover:text-white cursor-pointer transition pb-2 border-b border-gray-800">
                 <Link href="/series" onClick={() => setIsMobileMenuOpen(false)}>Series</Link>

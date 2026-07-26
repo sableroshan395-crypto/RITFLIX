@@ -63,6 +63,28 @@ const MediaSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isMCU: {
+      type: Boolean,
+      default: false,
+    },
+    mcuPhase: {
+      type: String,
+      enum: ["Phase 1", "Phase 2", "Phase 3", "Phase 4", "Phase 5", "Phase 6", "Other"],
+      default: "Phase 1",
+    },
+    mcuSaga: {
+      type: String,
+      enum: ["The Infinity Saga", "The Multiverse Saga", "Other"],
+      default: "The Infinity Saga",
+    },
+    chronologicalOrder: {
+      type: Number,
+      default: 0,
+    },
+    releaseOrder: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );
