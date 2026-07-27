@@ -21,7 +21,7 @@ export async function GET(request) {
     if (isMCU === "true") query.isMCU = true;
     if (isMCU === "false") query.isMCU = { $ne: true };
     if (phase) query.mcuPhase = phase;
-    if (saga) {
+    if (saga && saga !== "All") {
       if (saga === "Infinity Saga" || saga === "The Infinity Saga") {
         query.mcuSaga = { $in: ["Infinity Saga", "The Infinity Saga"] };
       } else if (saga === "Multiverse Saga" || saga === "The Multiverse Saga") {
