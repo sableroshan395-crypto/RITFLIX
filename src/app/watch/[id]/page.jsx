@@ -62,6 +62,8 @@ function WatchPlayer() {
 
   // ── Track whether we successfully locked orientation ──
   const orientationLockedRef = useRef(false);
+  // Guard against re-entrant fullscreen handling
+  const fsProcessingRef = useRef(false);
 
   // Helper: lock orientation to landscape (call only from user gestures)
   const lockToLandscape = async () => {
@@ -87,44 +89,88 @@ function WatchPlayer() {
     orientationLockedRef.current = false;
   };
 
-  // ── Detect portrait fullscreen for CSS rotation fallback ──
-  // This does NOT call lock() — that only happens from user gestures.
+  // ── Intercept native <video> fullscreen requests ──
+  // When the user taps the fullscreen icon on the native video controls,
+  // the browser requests fullscreen on the <video> element itself.
+  // We intercept this and redirect it to our container so our overlay,
+  // orientation lock, and CSS rotation all work correctly and don't fight
+  // with the native behavior (which was causing the immediate exit).
   useEffect(() => {
-    const checkPortraitFullscreen = () => {
-      const isFs = !!document.fullscreenElement;
+    const container = containerRef.current;
+    if (!container) return;
 
-      if (!isFs) {
-        // Exited fullscreen — unlock orientation and reset CSS fallback
+    const handleFullscreenChange = async () => {
+      // Prevent re-entrant processing (our own requestFullscreen calls
+      // trigger this event again)
+      if (fsProcessingRef.current) return;
+
+      const fsEl = document.fullscreenElement;
+
+      // Case 1: A <video> element entered fullscreen directly (native controls)
+      // → exit it and re-enter fullscreen on our container instead
+      if (fsEl && fsEl.tagName === "VIDEO") {
+        fsProcessingRef.current = true;
+        try {
+          // Exit the video-level fullscreen
+          await document.exitFullscreen();
+          // Small delay to let the browser settle
+          await new Promise((r) => setTimeout(r, 50));
+          // Enter fullscreen on our container
+          if (container.requestFullscreen) {
+            await container.requestFullscreen();
+          }
+          await lockToLandscape();
+        } catch (e) {
+          console.warn("Fullscreen redirect failed:", e);
+        } finally {
+          fsProcessingRef.current = false;
+        }
+        return;
+      }
+
+      // Case 2: Our container entered fullscreen — lock orientation
+      if (fsEl && (fsEl === container || container.contains(fsEl))) {
+        // Already in the right fullscreen, try orientation lock
+        if (!orientationLockedRef.current) {
+          lockToLandscape().catch(() => {});
+        }
+
+        // Apply CSS rotation fallback if orientation lock isn't available
+        if (!orientationLockedRef.current) {
+          const isPortrait = window.innerHeight > window.innerWidth;
+          setIsPortraitFullscreen(isPortrait && isMobile);
+        } else {
+          setIsPortraitFullscreen(false);
+        }
+        return;
+      }
+
+      // Case 3: Exited fullscreen entirely
+      if (!fsEl) {
         setIsPortraitFullscreen(false);
         unlockOrientation();
-        return;
       }
-
-      // In fullscreen: if orientation was locked via API, no CSS fallback needed
-      if (orientationLockedRef.current) {
-        setIsPortraitFullscreen(false);
-        return;
-      }
-
-      // Fallback: apply CSS rotation if still portrait and lock wasn't available
-      const isPortrait = window.innerHeight > window.innerWidth;
-      setIsPortraitFullscreen(isFs && isPortrait && isMobile);
     };
 
-    document.addEventListener("fullscreenchange", checkPortraitFullscreen);
-    // Only listen for resize to update CSS fallback, with debounce to avoid thrashing
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+
+    // Resize listener only for updating CSS rotation fallback while in fullscreen
     let resizeTimer;
-    const debouncedCheck = () => {
+    const debouncedResize = () => {
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(checkPortraitFullscreen, 200);
+      resizeTimer = setTimeout(() => {
+        // Only act if we're in fullscreen and haven't locked orientation
+        if (!document.fullscreenElement || orientationLockedRef.current) return;
+        const isPortrait = window.innerHeight > window.innerWidth;
+        setIsPortraitFullscreen(isPortrait && isMobile);
+      }, 300);
     };
-    window.addEventListener("resize", debouncedCheck);
+    window.addEventListener("resize", debouncedResize);
 
     return () => {
-      document.removeEventListener("fullscreenchange", checkPortraitFullscreen);
-      window.removeEventListener("resize", debouncedCheck);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      window.removeEventListener("resize", debouncedResize);
       clearTimeout(resizeTimer);
-      // Unlock on cleanup
       unlockOrientation();
     };
   }, [isMobile]);
