@@ -21,7 +21,15 @@ export async function GET(request) {
     if (isMCU === "true") query.isMCU = true;
     if (isMCU === "false") query.isMCU = { $ne: true };
     if (phase) query.mcuPhase = phase;
-    if (saga) query.mcuSaga = saga;
+    if (saga) {
+      if (saga === "Infinity Saga" || saga === "The Infinity Saga") {
+        query.mcuSaga = { $in: ["Infinity Saga", "The Infinity Saga"] };
+      } else if (saga === "Multiverse Saga" || saga === "The Multiverse Saga") {
+        query.mcuSaga = { $in: ["Multiverse Saga", "The Multiverse Saga"] };
+      } else {
+        query.mcuSaga = saga;
+      }
+    }
 
     let sortOptions = { createdAt: -1 };
     if (sortBy === "chronologicalOrder") {

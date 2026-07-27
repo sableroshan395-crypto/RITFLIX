@@ -24,7 +24,7 @@ export default function AdminDashboard() {
     isFeatured: false,
     isMCU: false,
     mcuPhase: "Phase 1",
-    mcuSaga: "The Infinity Saga",
+    mcuSaga: "Infinity Saga",
     chronologicalOrder: 1,
     releaseOrder: 1,
     seasons: [],
@@ -635,21 +635,21 @@ export default function AdminDashboard() {
                         className="w-5 h-5 accent-red-600 cursor-pointer"
                       />
                       <span className="bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded font-black">MARVEL</span>
-                      Add to Dedicated MCU Section
+                      Add to Dedicated Marvel Section
                     </label>
                   </div>
                 </div>
 
-                {/* MCU Additional Metadata Box */}
+                {/* Marvel Additional Metadata Box */}
                 {formData.isMCU && (
                   <div className="bg-[#1b080a] border border-red-800/60 p-4 rounded-xl space-y-4 shadow-lg">
                     <h4 className="text-sm font-black uppercase text-red-400 tracking-wider flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-                      MCU Timeline & Order Settings
+                      Marvel Universe & Timeline Settings
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-300">MCU Phase</label>
+                        <label className="text-xs font-semibold text-gray-300">Marvel Phase (Optional)</label>
                         <select
                           name="mcuPhase"
                           value={formData.mcuPhase}
@@ -662,21 +662,29 @@ export default function AdminDashboard() {
                           <option value="Phase 4">Phase 4</option>
                           <option value="Phase 5">Phase 5</option>
                           <option value="Phase 6">Phase 6</option>
-                          <option value="Other">Other</option>
+                          <option value="Other">Other / None</option>
                         </select>
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-300">MCU Saga</label>
+                        <label className="text-xs font-semibold text-gray-300">Marvel Universe / Saga</label>
                         <select
                           name="mcuSaga"
                           value={formData.mcuSaga}
                           onChange={handleChange}
                           className="w-full bg-[#2a2a2a] text-white p-2.5 rounded border border-red-900/60 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
                         >
-                          <option value="The Infinity Saga">The Infinity Saga</option>
-                          <option value="The Multiverse Saga">The Multiverse Saga</option>
-                          <option value="Other">Other</option>
+                          <option value="Infinity Saga">Infinity Saga</option>
+                          <option value="Multiverse Saga">Multiverse Saga</option>
+                          <option value="X-Men Universe">X-Men Universe</option>
+                          <option value="Sony Spider-Man Universe">Sony Spider-Man Universe</option>
+                          <option value="Fantastic Four">Fantastic Four</option>
+                          <option value="Blade">Blade</option>
+                          <option value="Ghost Rider">Ghost Rider</option>
+                          <option value="Daredevil & Elektra">Daredevil & Elektra</option>
+                          <option value="Punisher">Punisher</option>
+                          <option value="Hulk">Hulk</option>
+                          <option value="Other Marvel Movies">Other Marvel Movies</option>
                         </select>
                       </div>
 
