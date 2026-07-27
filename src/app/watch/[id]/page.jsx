@@ -61,11 +61,36 @@ function WatchPlayer() {
   }, []);
 
   // ── Detect portrait fullscreen (mobile) to apply CSS landscape rotation ──
+  // Also try to lock orientation to landscape via Screen Orientation API
   useEffect(() => {
-    const checkPortraitFullscreen = () => {
+    const checkPortraitFullscreen = async () => {
       const isFs = !!document.fullscreenElement;
       const isPortrait = window.innerHeight > window.innerWidth;
-      setIsPortraitFullscreen(isFs && isPortrait && isMobile);
+
+      if (isFs && isMobile) {
+        // Try to lock to landscape using Screen Orientation API
+        try {
+          if (screen.orientation && screen.orientation.lock) {
+            await screen.orientation.lock("landscape");
+            // If lock succeeded, no CSS rotation needed
+            setIsPortraitFullscreen(false);
+            return;
+          }
+        } catch (e) {
+          // lock() not supported or failed — fall back to CSS rotation
+          console.warn("Orientation lock not supported, using CSS fallback:", e.message);
+        }
+        // Fallback: use CSS rotation if still in portrait
+        setIsPortraitFullscreen(isPortrait);
+      } else {
+        // Exiting fullscreen — unlock orientation if possible
+        setIsPortraitFullscreen(false);
+        try {
+          if (screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock();
+          }
+        } catch (_) {}
+      }
     };
 
     document.addEventListener("fullscreenchange", checkPortraitFullscreen);
@@ -80,6 +105,12 @@ function WatchPlayer() {
       if (screen.orientation) {
         screen.orientation.removeEventListener("change", checkPortraitFullscreen);
       }
+      // Unlock on cleanup
+      try {
+        if (screen.orientation && screen.orientation.unlock) {
+          screen.orientation.unlock();
+        }
+      } catch (_) {}
     };
   }, [isMobile]);
 
@@ -202,8 +233,12 @@ function WatchPlayer() {
           ) {
             await containerRef.current.requestFullscreen();
           }
+          // Lock orientation to landscape
+          if (screen.orientation && screen.orientation.lock) {
+            await screen.orientation.lock("landscape");
+          }
         } catch (e) {
-          console.warn("Fullscreen failed:", e);
+          console.warn("Fullscreen/orientation lock failed:", e);
         }
       }
     }
@@ -227,8 +262,12 @@ function WatchPlayer() {
         if (!document.fullscreenElement && containerRef.current.requestFullscreen) {
           await containerRef.current.requestFullscreen();
         }
+        // Lock orientation to landscape immediately (requires user gesture + fullscreen)
+        if (screen.orientation && screen.orientation.lock) {
+          await screen.orientation.lock("landscape");
+        }
       } catch (e) {
-        console.warn("Fullscreen failed:", e);
+        console.warn("Fullscreen/orientation lock failed:", e);
       }
     }
   };
